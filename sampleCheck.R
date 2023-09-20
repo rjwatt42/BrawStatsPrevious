@@ -1,22 +1,43 @@
+changeAmount<-1
 
 cheatSample<-function(IV,IV2,DV,effect,design,evidence,sample,result) {
   
   if (design$sCheating=="None") return(result)
   if (design$sCheatingAmount==0) return(result)
   if (isSignificant(STMethod,result$pIV,result$rIV,result$nval,result$df1,evidence)) return(result)
+
+  # fix the hypothesis
+  effect$world$worldOn<-FALSE
+  effect$rIV<-result$rpIV
   
-  if (design$sCheating=="Retry") {
+  if (is.element(design$sCheating,c("Retry","Add"))) {
     ntrials<-0
-    while (!isSignificant(STMethod,result$pIV,result$rIV,result$nval,result$df1,evidence) && ntrials<design$sCheatingAmount) {
+    switch(design$sCheatingLimit,
+           "Fixed"={limit<-design$sCheatingAmount},
+           "Budget"={limit<-design$sCheatingBudget}
+           )
+    while (!isSignificant(STMethod,result$pIV,result$rIV,result$nval,result$df1,evidence) && ntrials<limit) {
       sample<-makeSample(IV,IV2,DV,effect,design)
       result<-analyseSample(IV,IV2,DV,effect,design,evidence,sample)
-      ntrials<-ntrials+1
+      switch(design$sCheatingLimit,
+             "Fixed"={ntrials<-ntrials+1},
+             "Budget"={ntrials<-ntrials+result$nval}
+      )
     }
     return(result)
   }
   
-  
-  if (design$sCheating=="Prune") {
+  if (is.element(design$sCheating,c("Grow","Replace"))) {
+    design2<-design
+    design2$sN<-design$sCheatingAmount*changeAmount
+    design2$sNRand<-FALSE
+    
+    effect2<-effect
+
+    sample2<-makeSample(IV,IV2,DV,effect2,design2)
+  }
+
+  if (is.element(design$sCheating,c("Prune","Replace"))) {
     ntrials<-0
     while (!isSignificant(STMethod,result$pIV,result$rIV,result$nval,result$df1,evidence) && ntrials<design$sCheatingAmount) {
       ps<-c()
@@ -31,33 +52,29 @@ cheatSample<-function(IV,IV2,DV,effect,design,evidence,sample,result) {
         result1<-analyseSample(IV,IV2,DV,effect,design,evidence,sample1)
         ps<-c(ps,result1$pIV)
       }
-      keep<-ps>min(ps)
-      sample$participant<-sample$participant[keep]
-      sample$iv<-sample$iv[keep]
-      sample$dv<-sample$dv[keep]
-      sample$ivplot<-sample$ivplot[keep]
-      sample$dvplot<-sample$dvplot[keep]
-      
+      switch(design$sCheating,
+             "Prune"={
+               keep<-ps>min(ps)
+               sample$participant<-sample$participant[keep]
+               sample$iv<-sample$iv[keep]
+               sample$dv<-sample$dv[keep]
+               sample$ivplot<-sample$ivplot[keep]
+               sample$dvplot<-sample$dvplot[keep]},
+             "Replace"={
+               change<-which.min(ps)
+               sample$iv[change]<-sample2$iv[ntrials+1]
+               sample$dv[change]<-sample2$dv[ntrials+1]
+               sample$ivplot[change]<-sample2$ivplot[ntrials+1]
+               sample$dvplot[change]<-sample2$dvplot[ntrials+1]
+             }
+      )
       result<-analyseSample(IV,IV2,DV,effect,design,evidence,sample)
       ntrials<-ntrials+1
     }
     return(result)
   }
   
-  if (design$sCheating=="Add") changeAmount<-design$sN
-  else changeAmount<-1
-  
-  design2<-design
-  design2$sN<-design$sCheatingAmount*changeAmount
-  design2$sNRand<-FALSE
-  
-  effect2<-effect
-  effect2$populationRZ<-NA
-  effect2$rIV<-result$rpIV
-  
-  sample2<-makeSample(IV,IV2,DV,effect2,design2)
-  
-  if (is.element(design$sCheating,c("Grow","Add"))) {
+  if (design$sCheating=="Grow") {
     ntrials<-0
     while (!isSignificant(STMethod,result$pIV,result$rIV,result$nval,result$df1,evidence) && ntrials<design$sCheatingAmount*changeAmount) {
       sample$participant<-c(sample$participant,length(sample$participant)+(1:changeAmount))
@@ -89,11 +106,6 @@ cheatSample<-function(IV,IV2,DV,effect,design,evidence,sample,result) {
         result1<-analyseSample(IV,IV2,DV,effect,design,evidence,sample1)
         ps<-c(ps,result1$pIV)
       }
-      change<-which.min(ps)
-      sample$iv[change]<-sample2$iv[ntrials+1]
-      sample$dv[change]<-sample2$dv[ntrials+1]
-      sample$ivplot[change]<-sample2$ivplot[ntrials+1]
-      sample$dvplot[change]<-sample2$dvplot[ntrials+1]
       
       result<-analyseSample(IV,IV2,DV,effect,design,evidence,sample)
       ntrials<-ntrials+1
@@ -132,8 +144,9 @@ replicateSample<-function(IV,IV2,DV,effect,design,evidence,sample,res) {
     design1<-design
     design1$sNRand<-FALSE
     design1$sN<-res$nval
-    if (design$sReplUseBudget) {
-      design$sReplRepeats<-floor(design$sReplBudget/design$sN)-1
+    if (design$sReplType=="Budget") {
+      design$sReplRepeats<-1000
+      budgetUse<-res$nval
     }
     if (design$sReplRepeats>0) {
     for (i in 1:design$sReplRepeats) {
@@ -150,8 +163,11 @@ replicateSample<-function(IV,IV2,DV,effect,design,evidence,sample,res) {
         # get the new sample size
         design1$sN<-rw2n(r,design$sReplPower,design$sReplTails)
         design1$sNRand<-FALSE
+        if (design$sReplType=="Budget") {
+          design1$sN<-min(design1$sN,design$sReplBudget-budgetUse)
+        }
       }
-      
+
       if (!shortHand) {
         sample<-makeSample(IV,IV2,DV,effect,design1)
         res<-analyseSample(IV,IV2,DV,effect,design1,evidence,sample)
@@ -173,6 +189,11 @@ replicateSample<-function(IV,IV2,DV,effect,design,evidence,sample,res) {
       ResultHistory$r<-c(ResultHistory$r,res$rIV)
       ResultHistory$rp<-c(ResultHistory$rp,res$rpIV)
       ResultHistory$p<-c(ResultHistory$p,res$pIV)
+      
+      if (design$sReplType=="Budget") {
+        budgetUse<-budgetUse+res$nval
+        if (budgetUse>=design$sReplBudget) break;
+      }
     }
     }
     res<-resHold

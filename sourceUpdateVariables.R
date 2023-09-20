@@ -8,6 +8,13 @@ updateIV<-function(){
 
   IV<-as.list(variables[use,])
   
+  if (IV$type!="Interval" && shortHand) {
+    hmm("Please switch to longhand calculations: IV not Interval")
+  }
+  if (any(c(IV$skew,IV$kurtosis-3)!=0) && shortHand) {
+    hmm("Please switch to longhand calculations: IV skew/kurtosis")
+  }
+  
   if (IV$type=="Categorical") {
     cs<-IV$cases
     cs<-strsplit(cs,",")
@@ -75,6 +82,13 @@ updateDV<-function(){
     }
   }
   
+  if (DV$type!="Interval" && shortHand) {
+    hmm("Please switch to longhand calculations: DV not Interval")
+  }
+  if (any(c(DV$skew,DV$kurtosis-3)!=0) && shortHand) {
+    hmm("Please switch to longhand calculations: DV skew/kurtosis")
+  }
+  
   if (DV$type=="Categorical") {
     cs<-DV$cases
     cs<-strsplit(cs,",")
@@ -104,8 +118,8 @@ observeEvent(c(input$rIV,input$rIV2,input$rIVIV2,input$rIVIV2DV,
                  
                  # expectedResult<-c()
                  exploreResultHold<-list(Hypothesis=c(),Design=c(),MetaAnalysis=c())
-                 likelihood_P_ResultHold<-c()
-                 likelihood_S_ResultHold<-c()
+                 possiblePResultHold<-c()
+                 possibleSResultHold<-c()
                  
                  updateCheckboxInput(session,"EvidenceExpected_append",value=FALSE)
                  updateCheckboxInput(session,"ExploreAppendH",value=FALSE)

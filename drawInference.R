@@ -206,16 +206,16 @@ draw2Inference<-function(IV,IV2,DV,effect,design,evidence,result,disp1,disp2,met
   if (xsc==1) {
     d1<-log10(d1)
     xlim<-c(log10(min_p), 0)
-    disp1<-bquote(log[10] (.(disp1)))
+    disp1<-bquote(bold(log['10'] (.(disp1))))
   }
   if (ysc==1) {
     d2<-log10(d2)
     ylim<-c(log10(min_p), 0)
-    disp2<-bquote(log[10] (.(disp2)))
+    disp2<-bquote(bold(log['10'] (.(disp2))))
   }
   if (ysc==2) {
     d2<-log10(d2)
-    disp2<-bquote(log[10] (.(disp2)))
+    disp2<-bquote(bold(log['10'] (.(disp2))))
   }
   pts<-data.frame(x=d1,y=d2)
   
@@ -248,7 +248,7 @@ draw2Inference<-function(IV,IV2,DV,effect,design,evidence,result,disp1,disp2,met
       use<-d2<=maxnPlot
       pts<-data.frame(x=d1[use],y=d2[use])
       nbins<-diff(ylim)/(2*IQR(d2[use])*length(d2[use])^(-0.33))
-      g<-g+stat_bin2d(data=pts,aes(x=x,y=y),bins=nbins)+scale_fill_gradientn(colours=c("#666666",plotcolours$descriptionC))
+      g<-g+stat_bin2d(data=pts,aes(x=x,y=y),bins=nbins)+scale_fill_gradientn(colours=c(maincolours$graphBack,plotcolours$descriptionC))
     }
   }
   g<-g+theme(legend.position = "none")+plotTheme

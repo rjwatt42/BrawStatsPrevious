@@ -47,7 +47,7 @@ source("drawDescription.R")
 source("drawInference.R")
 source("drawMeta.R")
 source("drawExplore.R")
-source("drawLikelihood.R")
+source("drawPossible.R")
 
 source("sampleMake.R")
 source("sampleAnalyse.R")
@@ -64,11 +64,11 @@ source("reportInference.R")
 source("reportExpected.R")
 source("reportMetaAnalysis.R")
 source("reportExplore.R")
-source("reportLikelihood.R")
+source("reportPossible.R")
 
 source("runMetaAnalysis.R")
 source("runExplore.R")
-source("runLikelihood.R")
+source("runPossible.R")
 source("runBatchFiles.R")
 
 source("wsRead.R")
@@ -90,17 +90,22 @@ shinyServer(function(input, output, session) {
 ####################################
 # BASIC SET UP that cannot be done inside ui.R  
   shinyjs::hideElement(id= "EvidenceHypothesisApply")
-  shinyjs::hideElement(id= "LGEvidenceHypothesisApply")
   shinyjs::hideElement(id= "Using")
   shinyjs::hideElement(id="EvidenceExpectedStop")
   updateSelectInput(session, "IVchoice", choices = variables$name, selected = variables$name[1])
   updateSelectInput(session, "IV2choice", choices = c("none",variables$name), selected = "none")
   updateSelectInput(session, "DVchoice", choices = variables$name, selected = variables$name[3])
   
+  if (!is_local) {
+  hideElement("extraRep1")
+  hideElement("extraRep2")
+  hideElement("extraRep3")
+  }
+  
 ####################################
   if (debug) debugPrint("ServerKeys")
   
-  source("loadExtras.R")
+  source("extras.R")
   source("serverKeys.R",local=TRUE)
   
   observeEvent(input$LoadExtras, {
@@ -115,6 +120,75 @@ shinyServer(function(input, output, session) {
     shortHand<<-input$shortHand
   }
   )
+  
+  observeEvent(c(input$LargeGraphs,input$WhiteGraphs), {
+    currentGraph<-input$Graphs
+    currentReport<-input$Reports
+    
+    if (input$WhiteGraphs) {
+      maincolours<<-maincoloursBW
+      mainTheme<<-theme(panel.background = element_rect(fill=maincolours$graphBack, colour="black"),
+                        panel.grid.major = element_line(linetype="blank"),panel.grid.minor = element_line(linetype="blank"),
+                        plot.background = element_rect(fill=maincolours$graphC, colour=maincolours$graphC))
+      plotBlankTheme<<-theme(panel.background = element_rect(fill=maincolours$graphC, colour=maincolours$graphC),
+                             panel.grid.major = element_line(linetype="blank"),panel.grid.minor = element_line(linetype="blank"),
+                             plot.background = element_rect(fill=maincolours$graphC, colour=maincolours$graphC),
+                             axis.title=element_text(size=16,face="bold")
+      )
+    } else {
+      maincolours<<-maincoloursBL
+      mainTheme<<-theme(panel.background = element_rect(fill=maincolours$graphBack, colour="black"),
+                        panel.grid.major = element_line(linetype="blank"),panel.grid.minor = element_line(linetype="blank"),
+                        plot.background = element_rect(fill=maincolours$graphC, colour=maincolours$graphC))
+      plotBlankTheme<<-theme(panel.background = element_rect(fill=maincolours$graphC, colour=maincolours$graphC),
+                             panel.grid.major = element_line(linetype="blank"),panel.grid.minor = element_line(linetype="blank"),
+                             plot.background = element_rect(fill=maincolours$graphC, colour=maincolours$graphC),
+                             axis.title=element_text(size=16,face="bold")
+      )
+    }
+    
+    if (input$LargeGraphs) {
+      plotTheme<<-mainTheme+LGplotTheme
+      labelSize<<-6
+      char3D<<-2
+      
+      output$mainColumns <- renderUI({
+        tagList(
+          column(width=12,
+                 style = paste("margin-left: 4px;padding-left: 0px;margin-right: -10px;padding-right: -10px;"),
+                 MainGraphs1(),
+                 MainReports1()
+          )
+        )
+      }
+      )
+      hideElement("HypothesisPopulation")
+    } else {
+      plotTheme<<-mainTheme+SMplotTheme
+      pplotTheme<<-mainTheme+SMplotTheme+theme(plot.margin=margin(0.15,0.8,0,0.25,"cm"))
+      labelSize<<-4
+      char3D<<-1.3
+      
+      output$mainColumns <- renderUI({
+        tagList(
+          column(width=4, id="HypothesisPopulation",
+                 style = paste("margin-left: 4px;padding-left: 0px;margin-right: -10px;padding-right: -10px;"),
+                 HypothesisDiagram(),
+                 PopulationDiagram()
+          ),
+          column(width=8,
+                 style = paste("margin-left: 4px;padding-left: 0px;margin-right: -10px;padding-right: -10px;"),
+                 MainGraphs(),
+                 MainReports()
+          )
+        )
+      }
+      )
+      showElement("HypothesisPopulation")
+    }
+    updateTabsetPanel(session, "Graphs",selected = currentGraph)
+    updateTabsetPanel(session, "Reports",selected = currentReport)
+  })
   
 ####################################
 # other housekeeping
@@ -148,14 +222,14 @@ shinyServer(function(input, output, session) {
     
     before<-paste0("<div style='",localStyle,"'>")
     after<-"</div>"
-      n<-input$sN
-      if (!is.null(n) && !is.na(n)) {
-        if (n<1 && n>0) {
-          html("sNLabel",paste0(before,"Sample Power:",after))
-        } else {
-          html("sNLabel",paste0(before,"Sample Size:",after))
-        }
+    n<-input$sN
+    if (!is.null(n) && !is.na(n)) {
+      if (n<1 && n>0) {
+        html("sNLabel",paste0(before,"Sample Power:",after))
+      } else {
+        html("sNLabel",paste0(before,"Sample Size:",after))
       }
+    }
   }
   )
   
@@ -339,8 +413,6 @@ source("sourceUpdateData.R",local=TRUE)
   source("sourceInspectVariables.R",local=TRUE)
   source("sourceVariables.R",local=TRUE)
   
-  source("sourceLGDisplay.R",local=TRUE)
-  
   source("sourceUpdateVariables.R",local=TRUE)
   source("sourceUpdateSystem.R",local=TRUE)
   
@@ -352,7 +424,7 @@ source("sourceUpdateData.R",local=TRUE)
   
   source("sourceExplore.R",local=TRUE)
   
-  source("sourceLikelihood.R",local=TRUE)
+  source("sourcePossible.R",local=TRUE)
   source("sourceFiles.R",local=TRUE)
   # end of everything        
   

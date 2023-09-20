@@ -32,19 +32,22 @@ observeEvent(c(input$exploreRunH,input$exploreRunD,input$exploreRunM),{
     updateTabsetPanel(session, "Reports",selected = "Explore")
   }
 },priority=100)
-observeEvent(c(input$LGexploreRunH,input$LGexploreRunD,input$LGexploreRunM),{
-  if (any(c(input$LGexploreRunH,input$LGexploreRunD,input$LGexploreRunM)>0))
-  {validExplore<<-TRUE
-  }
-},priority=100)
 
 # and watch for IV2 appearing
 observeEvent(input$IV2choice,{
+  if (switches$doWorlds) {
+    use2<-hypothesisChoicesV2Extra
+    use3<-hypothesisChoicesV3
+  }  else {
+    use2<-hypothesisChoicesV2
+    use3<-hypothesisChoicesV3
+  }
+  
   if (input$IV2choice=="none") {
-    updateSelectInput(session,"Explore_typeH", choices=hypothesisChoicesV2)
+    updateSelectInput(session,"Explore_typeH", choices=use2)
   }
   else {
-    updateSelectInput(session,"Explore_typeH", choices=hypothesisChoicesV3)
+    updateSelectInput(session,"Explore_typeH", choices=use3)
   }
 })
 
@@ -55,20 +58,17 @@ observeEvent(c(input$Explore_typeD,input$Explore_typeH,input$Explore_typeM),{
 observeEvent(input$Explore_typeD,{
   if (input$Explore_typeD=="SampleSize") {
     updateNumericInput(session,"Explore_nRange",value=250,min=10,step=50)
-    updateNumericInput(session,"LGExplore_nRange",value=250,min=10,step=50)
   }
   if (input$Explore_typeD=="Repeats") {
     updateNumericInput(session,"Explore_nRange",value=7,min=1,step=1)
-    updateNumericInput(session,"LGExplore_nRange",value=7,min=1,step=1)
   }
 })
 
 # here's where we start a run
-observeEvent(c(input$exploreRunH,input$exploreRunD,input$exploreRunM,
-               input$LGexploreRunH,input$LGexploreRunD,input$LGexploreRunM),
+observeEvent(c(input$exploreRunH,input$exploreRunD,input$exploreRunM),
              {
-               runPressed<-c(input$exploreRunH,input$exploreRunD,input$LGexploreRunH,input$LGexploreRunD)
-               if (switches$doMetaAnalysis) runPressed<-c(runPressed,input$exploreRunM,input$LGexploreRunM)
+               runPressed<-c(input$exploreRunH,input$exploreRunD)
+               if (switches$doMetaAnalysis) runPressed<-c(runPressed,input$exploreRunM)
                
                if (notRunningExplore) {
                  if (shortHand) {
@@ -94,9 +94,6 @@ observeEvent(c(input$exploreRunH,input$exploreRunD,input$exploreRunM,
                    updateActionButton(session,"exploreRunH",label=stopLabel)
                    updateActionButton(session,"exploreRunD",label=stopLabel)
                    updateActionButton(session,"exploreRunM",label=stopLabel)
-                   updateActionButton(session,"LGexploreRunH",label=stopLabel)
-                   updateActionButton(session,"LGexploreRunD",label=stopLabel)
-                   updateActionButton(session,"LGexploreRunM",label=stopLabel)
                    notRunningExplore<<-FALSE
                  }
                  cycleCount<<-0
@@ -105,9 +102,6 @@ observeEvent(c(input$exploreRunH,input$exploreRunD,input$exploreRunM,
                  updateActionButton(session,"exploreRunH",label="Run")
                  updateActionButton(session,"exploreRunD",label="Run")
                  updateActionButton(session,"exploreRunM",label="Run")
-                 updateActionButton(session,"LGexploreRunH",label="Run")
-                 updateActionButton(session,"LGexploreRunD",label="Run")
-                 updateActionButton(session,"LGexploreRunM",label="Run")
                  notRunningExplore<<-TRUE
                }
              },priority=100)
@@ -124,6 +118,8 @@ updateExplore<-function(){
                       Explore_show=input$Explore_showH, 
                       Explore_typeShow=input$Explore_typeShowH, 
                       Explore_whichShow=input$Explore_whichShowH, 
+                      Explore_xlog = input$Explore_xlogD,
+                      Explore_ylog = input$Explore_ylogH,
                       Explore_length=as.numeric(input$Explore_lengthH),
                       Append=input$ExploreAppendH)  
             },
@@ -132,6 +128,8 @@ updateExplore<-function(){
                       Explore_show=input$Explore_showD, 
                       Explore_typeShow=input$Explore_typeShowD, 
                       Explore_whichShow=input$Explore_whichShowD, 
+                      Explore_xlog = input$Explore_xlogD,
+                      Explore_ylog = input$Explore_ylogD,
                       Explore_length=as.numeric(input$Explore_lengthD),
                       Append=input$ExploreAppendD)  
             },
@@ -140,15 +138,18 @@ updateExplore<-function(){
                       Explore_show=input$Explore_showM, 
                       Explore_typeShow=explore$Explore_typeShow, 
                       Explore_whichShow=explore$Explore_whichShow, 
+                      Explore_xlog = input$Explore_xlogD,
+                      Explore_ylog = input$Explore_ylogD,
                       Explore_length=as.numeric(input$Explore_lengthM),
                       Append=input$ExploreAppendM)  
             }
     )
-    explore<-c(l,list(Explore_npoints=input$Explore_npoints,Explore_xlog = input$Explore_xlog,
+    explore<-c(l,list(Explore_npoints=input$Explore_npoints,
                       Explore_quants=input$Explore_quants,
                       Explore_esRange=input$Explore_esRange,Explore_nRange=input$Explore_nRange,
                       Explore_metaRange=input$Explore_metaRange,Explore_Mxlog = input$Explore_Mxlog,Explore_nrRange=input$Explore_nRange,
-                      ExploreFull_ylim=input$ExploreFull_ylim,
+                      ExploreAny_ylim=input$ExploreAny_ylim,
+                      ExploreFull_ylim=TRUE,
                       ExploreTheory=input$evidenceTheory,
                       Explore_family=input$ExploreTab)
     )
@@ -181,7 +182,6 @@ doExploreAnalysis <- function(IV,IV2,DV,effect,design,evidence,metaAnalysis,expl
 # show explore analysis        
 makeExploreGraph <- function() {
   doit<-c(input$Explore_showH,input$Explore_showD,input$Explore_showM,
-          input$LGExplore_showH,input$LGExplore_showD,input$LGExplore_showM,
           input$STMethod,input$alpha,input$STPrior)
   
   if (!is.null(exploreResult$Explore_family) && exploreResult$Explore_family!=input$ExploreTab) {
@@ -239,7 +239,8 @@ makeExploreGraph <- function() {
   }
   
   if (!effect$world$worldOn  && (explore$Explore_show=="NHSTErrors" || explore$Explore_show=="FDR;FMR" || explore$Explore_show=="FDR")) {
-    ns<-exploreResult$result$count-exploreResult$nullresult$count
+    if (is.null(exploreResult$nullresult$count)) exploreResult$nullresult$count<-0
+      ns<-exploreResult$result$count-exploreResult$nullresult$count
     if (ns>0) {
       showNotification(paste0("Explore(null) ",explore$Explore_family," : starting"),id="counting",duration=Inf,closeButton=FALSE,type="message")
       exploreResult$nullresult<<-doExploreAnalysis(IV,IV2,DV,updateEffect(NULL),design,evidence,metaAnalysis,explore,exploreResult$nullresult,ns,doingNull=TRUE)
@@ -283,9 +284,6 @@ makeExploreGraph <- function() {
     updateActionButton(session,"exploreRunH",label="Run")
     updateActionButton(session,"exploreRunD",label="Run")
     updateActionButton(session,"exploreRunM",label="Run")
-    updateActionButton(session,"LGexploreRunH",label="Run")
-    updateActionButton(session,"LGexploreRunD",label="Run")
-    updateActionButton(session,"LGexploreRunM",label="Run")
     notRunningExplore<<-TRUE
   }
   
@@ -301,14 +299,21 @@ output$ExplorePlot <- renderPlot( {
     scale_x_continuous(limits = c(0,10),labels=NULL,breaks=NULL)+scale_y_continuous(limits = c(0,10),labels=NULL,breaks=NULL)
   g<-g+annotation_custom(grob=ggplotGrob(g1+gridTheme),xmin=0,xmax=10,ymin=0,ymax=10)
   g  
-  })
+})
 
+output$ExplorePlot1 <- renderPlot( {
+  doIt<-c(input$exploreRunH,input$exploreRunD,input$exploreRunM)
+  startExplore<<-c(input$exploreRunH,input$exploreRunD,input$exploreRunM)
+  g1<-makeExploreGraph()
+  
+  g<-ggplot()+plotBlankTheme+theme(plot.margin=margin(0,-0.2,0,0,"cm"))+
+    scale_x_continuous(limits = c(0,10),labels=NULL,breaks=NULL)+scale_y_continuous(limits = c(0,10),labels=NULL,breaks=NULL)
+  g<-g+annotation_custom(grob=ggplotGrob(g1+gridTheme),xmin=0,xmax=10,ymin=0,ymax=10)
+  g  
+})
 
 # report explore analysis        
-output$ExploreReport <- renderPlot({
-  doIt<-c(input$exploreRunH,input$exploreRunD,input$exploreRunM,
-          input$STMethod,input$alpha)
-
+makeExploreReport<-function() {
   if (!is.null(exploreResult$Explore_family) && exploreResult$Explore_family!=input$ExploreTab) {
     if (is.null(exploreResultHold[[input$ExploreTab]])) {
       return(ggplot()+plotBlankTheme)
@@ -337,6 +342,16 @@ output$ExploreReport <- renderPlot({
   if (!validExplore || is.null(IV) || is.null(DV)) {return(ggplot()+plotBlankTheme)}
   
   reportExplore(IV,IV2,DV,effect,design,explore,exploreResult)
+}
+output$ExploreReport <- renderPlot({
+  doIt<-c(input$exploreRunH,input$exploreRunD,input$exploreRunM,
+          input$STMethod,input$alpha)
+  makeExploreReport()
+})
+output$ExploreReport1 <- renderPlot({
+  doIt<-c(input$exploreRunH,input$exploreRunD,input$exploreRunM,
+          input$STMethod,input$alpha)
+  makeExploreReport()
 })
 
 ##################################################################################    

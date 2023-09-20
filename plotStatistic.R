@@ -4,7 +4,6 @@ min_nw=10
 max_nw=10000
 horiz_scatter=0.5
 
-se_colour="#BBBBBB"
 se_size=0.75
 se_arrow=0.3
 CI=0.95
@@ -109,40 +108,77 @@ get_lowerEdge<-function(allvals,svals) {
 getBins<-function(vals,nsvals,target,minVal,maxVal,fixed=FALSE) {
   nv=max(length(nsvals),length(vals))
   nb<-round(sqrt(nv)*0.75)
-  if (min(vals,na.rm=TRUE)==max(vals,na.rm=TRUE)) {nb<-3}
-  # nb<-51
   
+  if (min(vals,na.rm=TRUE)==max(vals,na.rm=TRUE)) {nb<-3}
+
   high_p<-max(vals,na.rm=TRUE)+0.2
   low_p<-min(vals,na.rm=TRUE)-0.2
   if (!is.null(minVal)) {
-    low_p<-min(max(minVal,low_p,na.rm=TRUE),target)
+    low_p<-max(minVal,low_p,na.rm=TRUE)
   }
   if (!is.null(maxVal)) {
     high_p<-min(maxVal,high_p,na.rm=TRUE)
   }
+
   if ((length(nsvals)==0) || (length(nsvals)==length(vals))){
     bins<-seq(low_p,high_p,length.out=nb)
+    return(bins)
+  }
+
+  if (fixed) {
+    target_low<-max(-target,low_p)
+    target_high<-min(target,high_p)
+    targetRange<-target_high-target_low
+    nbs<-ceiling(nb*targetRange/(high_p-low_p))
+    binStep<-targetRange/nbs
+    bins<-seq(target_low,target_high,binStep)
+    if (target<high_p) {
+      bins<-c(bins,seq(target+binStep,high_p+binStep,binStep))
+    }
+    if (-target>low_p) {                                
+      bins<-c(rev(seq(-target-binStep,low_p-binStep,-binStep)),bins)
+    }
+    return(bins)
+  } 
+  
+  # make sure it goes through target
+  if (length(target)>1) {
+    if (high_p>target[2] && low_p< target[1]) {
+      nbs<-ceiling(nb*(target[2]-0)/(high_p-low_p))
+      binStep<-target[2]/nbs
+      bins<-c(rev(seq(0,low_p-binStep,-binStep)),seq(binStep,high_p,binStep))
+      return(bins)
+    }
+    if (high_p>target[2]) {
+      nbs<-ceiling(nb*(high_p-target[2])/(high_p-low_p))
+      binStep<-(high_p-target[2])/nbs
+      bins<-rev(seq(high_p,low_p-binStep,-binStep))
+      return(bins)
+    } 
+    if (low_p<target[1]) {
+      nbs<-ceiling(nb*(target[1]-low_p)/(high_p-low_p))
+      binStep<-(target[1]-low_p)/nbs
+      bins<-seq(low_p-binStep,high_p,binStep)
+      return(bins)
+    } 
   } else {
-    if (fixed) {
-      target_low<-max(-target,low_p)
-      target_high<-min(target,high_p)
-      targetRange<-target_high-target_low
-      nbs<-ceiling(nb*targetRange/(high_p-low_p))
-      binStep<-targetRange/nbs
-      bins<-seq(target_low,target_high,binStep)
-      if (target<high_p) {
-        bins<-c(bins,seq(target+binStep,high_p+binStep,binStep))
-      }
-      if (-target>low_p) {                                
-        bins<-c(rev(seq(-target-binStep,low_p-binStep,-binStep)),bins)
-      }
-    } else {
+    if (high_p>target) {
       nbs<-ceiling(nb*(high_p-target)/(high_p-low_p))
       binStep<-(high_p-target)/nbs
       bins<-rev(seq(high_p,low_p-binStep,-binStep))
-    }
+      return(bins)
+    } 
+    if (low_p<target) {
+      nbs<-ceiling(nb*(target-low_p)/(high_p-low_p))
+      binStep<-(target-low_p)/nbs
+      bins<-seq(low_p-binStep,high_p,binStep)
+      return(bins)
+    } 
   }
-  bins
+  # if all else fails
+  binStep<-(high_p-low_p)/nb
+  bins<-seq(low_p-binStep,high_p,binStep)
+  return(bins)
 }
 
 expected_hist<-function(vals,svals,valType){
@@ -155,13 +191,13 @@ expected_hist<-function(vals,svals,valType){
   switch (valType,
           "r"=  { # ns is small
             target<-get_upperEdge(abs(vals),abs(svals))
-            bins<-getBins(vals,svals,target,NULL,NULL,TRUE)
+            bins<-getBins(vals,svals,target,NULL,NULL,fixed=TRUE)
           },
           
           "p"=  { # ns is large
             if (pPlotScale=="log10") {
-            target<-log10(alpha)
-            bins<-getBins(vals,svals,target,log10(min_p),log10(1))
+              target<-log10(alpha)
+              bins<-getBins(vals,svals,target,log10(min_p),log10(1))
             } else {
               target<-alpha
               bins<-getBins(vals,svals,target,0,1)
@@ -171,22 +207,22 @@ expected_hist<-function(vals,svals,valType){
             
           "log(lrs)"={
             target<-alphaLLR
-            bins<-getBins(vals,svals,target,0,lrRange)
+            bins<-getBins(vals,svals,target*c(-1,1),0,lrRange)
           },
           
           "e1d"={
             target<-alphaLLR
-            bins<-getBins(vals,svals,target,-lrRange,lrRange)
+            bins<-getBins(vals,svals,target*c(-1,1),-lrRange,lrRange)
           },
           
           "log(lrd)"={
             target<-alphaLLR
-            bins<-getBins(vals,svals,target,-lrRange,lrRange)
+            bins<-getBins(vals,svals,target*c(-1,1),-lrRange,lrRange)
           },
           
           "e2d"={
-            target<-3
-            bins<-getBins(vals,svals,target,-lrRange,lrRange)
+            target<-alphaLLR
+            bins<-getBins(vals,svals,target*c(-1,1),-lrRange,lrRange)
           },
           
           "w"=  { # ns is small
@@ -196,12 +232,12 @@ expected_hist<-function(vals,svals,valType){
           
           "n"= { # ns is small
             target<-get_lowerEdge(vals,svals)
-            bins<-getBins(vals,svals,target,NULL,10000,FALSE)
+            bins<-getBins(vals,svals,target,NULL,10000)
           },
           
           "nw"= { # ns is large
             target<-get_lowerEdge(vals,svals)
-            bins<-getBins(vals,svals,target,NULL,max_nw,FALSE)
+            bins<-getBins(vals,svals,target,NULL,max_nw)
           }
   )
   use<-vals>=bins[1] & vals<bins[length(bins)]
@@ -247,22 +283,22 @@ expected_plot<-function(g,pts,expType=NULL,result=NULL,IV=NULL,DV=NULL,scale=1,c
       c2=plotcolours$descriptionC
     }
     if (expType=="e1") {
-      c1=plotcolours$infer_hiterr
-      c2=plotcolours$infer_nsigC
+      c1=plotcolours$infer_sigNull
+      c2=plotcolours$infer_nsNull
     }
     if (expType=="e2") {
-      c1=plotcolours$infer_sigC
-      c2=plotcolours$infer_misserr
+      c1=plotcolours$infer_sigNonNull
+      c2=plotcolours$infer_nsNonNull
     }
     if (expType=="e1d") {
-      c1=plotcolours$infer_sigC
-      c2=plotcolours$infer_misserr
-      c3<-plotcolours$infer_hiterr
+      c1=plotcolours$infer_sigNull
+      c2=plotcolours$infer_nsdNull
+      c3<-plotcolours$infer_isigNull
     }
     if (expType=="e2d") {
-      c1=plotcolours$infer_sigC
-      c2=plotcolours$infer_misserr
-      c3<-plotcolours$infer_hiterr
+      c1=plotcolours$infer_sigNonNull
+      c2=plotcolours$infer_nsdNonNull
+      c3<-plotcolours$infer_isigNonNull
     }
   } else {
     c1=col
@@ -274,12 +310,12 @@ expected_plot<-function(g,pts,expType=NULL,result=NULL,IV=NULL,DV=NULL,scale=1,c
       if (expType=="r" && length(pts$y1)==1 && !is.null(result$rCI)){
         pts1se<-data.frame(x=pts$x,y=result$rCI)
         if (isSignificant(STMethod,result$pIV,result$rIV,result$nval,result$df1,result$evidence)) {c<-c1} else (c<-c2)
-        g<-g+geom_line(data=pts1se,aes(x=x,y=y),arrow=arrow(length=unit(se_arrow,"cm"),ends="both"),colour=c,size=se_size)
+        g<-g+geom_line(data=pts1se,aes(x=x,y=y),arrow=arrow(length=unit(se_arrow,"cm"),ends="both"),colour=c,linewidth=se_size)
       }
       if (expType=="p" && length(pts$y1)==1 && !is.null(result$pCI)){
         pts1se<-data.frame(x=pts$x,y=log10(result$pCI))
         if (isSignificant(STMethod,result$pIV,result$rIV,result$nval,result$df1,result$evidence)) {c<-c1} else (c<-c2)
-        g<-g+geom_line(data=pts1se,aes(x=x,y=y),arrow=arrow(length=unit(se_arrow,"cm"),ends="both"),colour=c,size=se_size)
+        g<-g+geom_line(data=pts1se,aes(x=x,y=y),arrow=arrow(length=unit(se_arrow,"cm"),ends="both"),colour=c,linewidth=se_size)
       }
     }
       
@@ -297,6 +333,11 @@ expected_plot<-function(g,pts,expType=NULL,result=NULL,IV=NULL,DV=NULL,scale=1,c
     g<-g+geom_point(data=pts1,aes(x=x, y=y1),shape=shapes$study, colour = co2, fill = c2, size = dotSize)
     pts2=pts[pts$y2,]
     g<-g+geom_point(data=pts2,aes(x=x, y=y1),shape=shapes$study, colour = co1, fill = c1, size = dotSize)
+    if (!is.null(expType))
+      if (is.element(expType,c("e1d","e2d"))) {
+        pts3=pts[pts$y3,]
+        g<-g+geom_point(data=pts3,aes(x=x, y=y1),shape=shapes$study, colour = co1, fill = c3, size = dotSize)
+      }
     
   } else {
     if (is.logical(pts$y2)) {
@@ -309,13 +350,13 @@ expected_plot<-function(g,pts,expType=NULL,result=NULL,IV=NULL,DV=NULL,scale=1,c
       geom_polygon(data=pts1,aes(y=x,x=y1*scale*scale+xoff),colour=NA, fill = c2)+
       geom_polygon(data=pts1,aes(y=x,x=y2*scale*scale+xoff),colour=NA, fill = c1)
     if (!is.null(expType))
-    if (is.element(expType,c("e1d","e2d"))) {
-      if (is.logical(pts$y3)) {
-        pts1<-expected_hist(pts$y1,pts$y1[pts$y3],expType)
-      }
+      if (is.element(expType,c("e1d","e2d"))) {
+        if (is.logical(pts$y3)) {
+          pts1<-expected_hist(pts$y1,pts$y1[pts$y3],expType)
+        }
         g<-g+
-      geom_polygon(data=pts1,aes(y=x,x=y2+xoff),colour=NA, fill = c3)
-    }
+          geom_polygon(data=pts1,aes(y=x,x=y2+xoff),colour=NA, fill = c3)
+      }
   }
   g
 }
@@ -351,7 +392,7 @@ r_plot<-function(result,IV,IV2=NULL,DV,effect,expType="r",logScale=FALSE,otherre
   switch (expType,
           "r"={
             ylim<-rlims
-            ylabel<-rlab
+            ylabel<-bquote(.(rlab))
             },
           "p"={
             ylim<-c(min_p, 1)
@@ -420,8 +461,10 @@ r_plot<-function(result,IV,IV2=NULL,DV,effect,expType="r",logScale=FALSE,otherre
   )
   if (logScale) {
     ylim<-log10(ylim)
-    ylabel<-bquote(log[10](.(ylabel)))
-  }  
+    ylabel<-bquote(bold(log['10'](.(ylabel))))
+  }  else {
+    ylabel<-bquote(bold(.(ylabel)))
+  }
   
   if (!all(is.na(result$rIV))) {
     data<-collectData(result)
@@ -436,10 +479,10 @@ r_plot<-function(result,IV,IV2=NULL,DV,effect,expType="r",logScale=FALSE,otherre
             "r1"={data$sh<-data$ro},
             "p"={data$sh<-data$ps},
             "p1"={data$sh<-data$po},
-            "log(lrs)"={data$sh<-res2llr(result,"sLLR")},
-            "log(lrd)"={data$sh<-res2llr(result,"dLLR")},
-            "e1d"={data$sh<-res2llr(result,"dLLR")},
-            "e2d"={data$sh<-res2llr(result,"dLLR")},
+            "log(lrs)"={data$sh<-cbind(res2llr(result,"sLLR"))},
+            "log(lrd)"={data$sh<-cbind(res2llr(result,"dLLR"))},
+            "e1d"={data$sh<-cbind(res2llr(result,"dLLR"))},
+            "e2d"={data$sh<-cbind(res2llr(result,"dLLR"))},
             "n"={data$sh<-data$ns},
             "w"={data$sh<-rn2w(data$rs,data$ns)},
             "wp"={data$sh<-rn2w(data$rp,data$ns)},
@@ -640,16 +683,16 @@ r_plot<-function(result,IV,IV2=NULL,DV,effect,expType="r",logScale=FALSE,otherre
                 }
         )
         lpts1<-data.frame(x = xoff[i]-0.98, y = ylim[2]+diff(ylim)/25,label = labelPt1)
-        g<-g+geom_label(data=lpts1,aes(x = x, y = y, label=label), hjust=0, vjust=0, fill = "white",size=3)
+        g<-g+geom_label(data=lpts1,aes(x = x, y = y, label=label), hjust=0, vjust=0, fill="white",size=labelSize)
         lpts1a<-data.frame(x = xoff[i]-0.98, y = ylim[1]-diff(ylim)/25,label = labelPt1a)
-        g<-g+geom_label(data=lpts1a,aes(x = x, y = y, label=label), hjust=0, vjust=0, fill = "white",size=3)
+        g<-g+geom_label(data=lpts1a,aes(x = x, y = y, label=label), hjust=0, vjust=0, fill="white",size=labelSize)
         if (is.element(expType,c("e1d","e2d"))) {
           lpts1<-data.frame(x = xoff[i]-0.98, y = sum(ylim)/2,label = labelPt1b)
-          g<-g+geom_label(data=lpts1,aes(x = x, y = y, label=label), hjust=0, vjust=0, fill = "white",size=3)
+          g<-g+geom_label(data=lpts1,aes(x = x, y = y, label=label), hjust=0, vjust=0, fill="white",size=labelSize)
         }
       } else {
         switch (expType,
-                "p"={labelPt1<-paste0(pSigLabel," = ")},
+                "p"={labelPt1<-paste0("p(sig)"," = ")},
                 "e1"={labelPt1<-"p(Type I) = "},
                 "e2"={labelPt1<-"p(Type II) = "}
         )
@@ -667,16 +710,16 @@ r_plot<-function(result,IV,IV2=NULL,DV,effect,expType="r",logScale=FALSE,otherre
         lpts1<-data.frame(x = xoff[i]-0.95, y = ylim[2]+diff(ylim)/25,label = labelPt3)
         # lpts2<-data.frame(x = xoff[i]-0.95, y = ylim[1]-diff(ylim)/25,label = labelPt3)
       }
-      g<-g+geom_label(data=lpts1,aes(x = x, y = y, label=label), hjust=0, vjust=0, fill = "white",size=3)
+      g<-g+geom_label(data=lpts1,aes(x = x, y = y, label=label), hjust=0, vjust=0, fill="white",size=labelSize)
       # if (!is.null(lpts2)) {
-      # g<-g+geom_label(data=lpts2,aes(x = x, y = y, label=label), hjust=0, vjust=0, fill = "white",size=3)
+      # g<-g+geom_label(data=lpts2,aes(x = x, y = y, label=label), hjust=0, vjust=0, fill="white",size=labelSize)
       # }
       }
     }
     
     if (is.element(expType,c("r","ci1","ci2"))) {
       lpts<-data.frame(x = xoff[i]-0.95, y = ylim[2],label=paste("actual =",format(rActual[i],digits=graph_precision)))
-      g<-g+geom_label(data=lpts,aes(x = x, y = y, label = label), hjust=0, vjust=0, fill = "white",size=3)
+      g<-g+geom_label(data=lpts,aes(x = x, y = y, label = label), hjust=0, vjust=0, fill="white",size=labelSize)
     }
   }
   }
@@ -717,15 +760,15 @@ rp_plot<-function(result,IV,IV2=NULL,DV,effect){
 llrs_plot<-function(result,IV,IV2=NULL,DV,effect){
   g<-r_plot(result,IV,IV2,DV,effect,"log(lrs)")
   sAlpha<-log(dnorm(0)/dnorm(qnorm(1-alpha/2)))
-  g<-g+geom_hline(yintercept=sAlpha, linetype="dotted", color="#44FF22", linewidth=0.5)
+  g<-g+geom_hline(yintercept=sAlpha, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)
   g
 }
 
 llrd_plot<-function(result,IV,IV2=NULL,DV,effect,ptype=NULL,otherresult=NULL){
   g<-r_plot(result,IV,IV2,DV,effect,"log(lrd)")
   sAlpha<-log(dnorm(0)/dnorm(qnorm(1-alpha/2)))
-  g<-g+geom_hline(yintercept=sAlpha, linetype="dotted", color="#44FF22", linewidth=0.5)
-  g<-g+geom_hline(yintercept= -sAlpha, linetype="dotted", color="#44FF22", linewidth=0.5)
+  g<-g+geom_hline(yintercept=sAlpha, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)
+  g<-g+geom_hline(yintercept= -sAlpha, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)
   g
 }
 
@@ -735,14 +778,14 @@ p_plot<-function(result,IV,IV2=NULL,DV,effect,ptype="p",otherresult=NULL,PlotSca
   
   if (ptype=="p") {
   if (PlotScale=="log10") {
-    g<-g+geom_hline(yintercept=log10(1), linetype="dotted", color="#FF4422", linewidth=0.5)+
-      geom_hline(yintercept=log10(0.005), linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=log10(0.01), linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=log10(alpha), linetype="dotted", color="#44FF22", linewidth=0.5)+
+    g<-g+geom_hline(yintercept=log10(1), linetype="dotted", color=plotcolours$one, linewidth=0.5)+
+      geom_hline(yintercept=log10(0.005), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=log10(0.01), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=log10(alpha), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
       scale_y_continuous(breaks=c(-4,-3,-2,-1,0),labels=c(0.0001,0.001,0.01,0.1,1))
   } else
   {
-    g<-g+geom_hline(yintercept=log10(alpha), linetype="dotted", color="#44FF22", linewidth=0.5)
+    g<-g+geom_hline(yintercept=log10(alpha), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)
     # g<-g+  scale_y_continuous(breaks=seq(0,1,0.1),labels=seq(0,1,0.1))
   }
   }
@@ -753,14 +796,14 @@ p1_plot<-function(result,IV,IV2=NULL,DV,effect,ptype="p1"){
   g<-r_plot(result,IV,IV2,DV,effect,ptype,pPlotScale=="log10")
   
   if (pPlotScale=="log10") {
-    g<-g+geom_hline(yintercept=log10(1), linetype="dotted", color="#FF4422", linewidth=0.5)+
-      geom_hline(yintercept=log10(0.005), linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=log10(0.01), linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=log10(alpha), linetype="dotted", color="#44FF22", linewidth=0.5)+
+    g<-g+geom_hline(yintercept=log10(1), linetype="dotted", color=plotcolours$one, linewidth=0.5)+
+      geom_hline(yintercept=log10(0.005), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=log10(0.01), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=log10(alpha), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
       scale_y_continuous(breaks=c(-4,-3,-2,-1,0),labels=c(0.0001,0.001,0.01,0.1,1))
   } else
   {
-    g<-g+geom_hline(yintercept=log10(alpha), linetype="dotted", color="#44FF22", linewidth=0.5)+
+    g<-g+geom_hline(yintercept=log10(alpha), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
       scale_y_continuous(breaks=seq(0,1,0.1),labels=seq(0,1,0.1))
   }
   g
@@ -771,13 +814,13 @@ w_plot<-function(result,IV,IV2=NULL,DV,effect){
   g<-r_plot(result,IV,IV2,DV,effect,"w",wPlotScale=="log10")
   
   if (wPlotScale=="log10") {
-    g<-g+geom_hline(yintercept=log10(alpha), linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=log10(0.5), linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=log10(0.8), linetype="dotted", color="#44FF22", linewidth=0.5)
+    g<-g+geom_hline(yintercept=log10(alpha), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=log10(0.5), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=log10(0.8), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)
   } else {
-    g<-g+geom_hline(yintercept=alpha, linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=0.5, linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=0.8, linetype="dotted", color="#44FF22", linewidth=0.5)
+    g<-g+geom_hline(yintercept=alpha, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=0.5, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=0.8, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)
   }
   g
 }
@@ -786,13 +829,13 @@ wp_plot<-function(result,IV,IV2=NULL,DV,effect){
   g<-r_plot(result,IV,IV2,DV,effect,"wp",wPlotScale=="log10")
   
   if (wPlotScale=="log10") {
-    g<-g+geom_hline(yintercept=log10(alpha), linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=log10(0.5), linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=log10(0.8), linetype="dotted", color="#44FF22", linewidth=0.5)
+    g<-g+geom_hline(yintercept=log10(alpha), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=log10(0.5), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=log10(0.8), linetype="dotted", color=plotcolours$alpha, linewidth=0.5)
   } else {
-    g<-g+geom_hline(yintercept=alpha, linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=0.5, linetype="dotted", color="#44FF22", linewidth=0.5)+
-      geom_hline(yintercept=0.8, linetype="dotted", color="#44FF22", linewidth=0.5)
+    g<-g+geom_hline(yintercept=alpha, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=0.5, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+      geom_hline(yintercept=0.8, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)
   }
   g
 }
@@ -810,10 +853,10 @@ e2_plot<-function(result,IV,IV2=NULL,DV,effect,nullresult=NULL){
   lambda<-format(effect$world$populationPDFk,digits=3)
   switch (RZ,
           "r"={
-            lab<-bquote("Non-null:  " ~ r["p"] ~ "~" ~ .(distr) (r/.(lambda)))
+            lab<-bquote(bold("Non-null:  " ~ r["p"] ~ "~" ~ .(distr) (r/.(lambda))))
           },
           "z"={
-            lab<-bquote("Non-null:  " ~ z["p"] ~ "~" ~ .(distr) (z/.(lambda)))
+            lab<-bquote(bold("Non-null:  " ~ z["p"] ~ "~" ~ .(distr) (z/.(lambda))))
           }
   )
   switch (STMethod,
@@ -827,8 +870,8 @@ e2_plot<-function(result,IV,IV2=NULL,DV,effect,nullresult=NULL){
           },
           "dLLR"={
             p_plot(result,IV,IV2,DV,effect,ptype="e2d",otherresult=nullresult,PlotScale="linear")+
-              geom_hline(yintercept=alphaLLR, linetype="dotted", color="#44FF22", linewidth=0.5)+
-              geom_hline(yintercept=-alphaLLR, linetype="dotted", color="#44FF22", linewidth=0.5)+
+              geom_hline(yintercept=alphaLLR, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+              geom_hline(yintercept=-alphaLLR, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
               ggtitle(lab)
           }
   )
@@ -837,10 +880,10 @@ e2_plot<-function(result,IV,IV2=NULL,DV,effect,nullresult=NULL){
 e1_plot<-function(nullresult,IV,IV2=NULL,DV,effect,result=NULL){
   switch (RZ,
           "r"={
-            lab<-bquote("Null:  " ~ r["p"] == 0)
+            lab<-bquote(bold("Null:  " ~ r["p"] == 0))
           },
           "z"={
-            lab<-bquote("Null:  " ~ z["p"] == 0)
+            lab<-bquote(bold("Null:  " ~ z["p"] == 0))
           }
   )
   switch (STMethod,
@@ -854,8 +897,8 @@ e1_plot<-function(nullresult,IV,IV2=NULL,DV,effect,result=NULL){
           },
           "dLLR"={
             p_plot(nullresult,IV,IV2,DV,effect,ptype="e1d",otherresult=result,PlotScale="linear")+
-              geom_hline(yintercept=alphaLLR, linetype="dotted", color="#44FF22", linewidth=0.5)+
-              geom_hline(yintercept=-alphaLLR, linetype="dotted", color="#44FF22", linewidth=0.5)+
+              geom_hline(yintercept=alphaLLR, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
+              geom_hline(yintercept=-alphaLLR, linetype="dotted", color=plotcolours$alpha, linewidth=0.5)+
               ggtitle(lab)
           }
   )

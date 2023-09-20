@@ -22,7 +22,7 @@ resetExpected()
 notRunningExpected<-TRUE
 
 # here's where we start a run
-observeEvent(c(input$EvidenceExpectedRun,input$LGEvidenceExpectedRun),{
+observeEvent(c(input$EvidenceExpectedRun),{
   if (notRunningExpected) {
     startTime<<-Sys.time()
     cycleTime<<-0
@@ -33,15 +33,13 @@ observeEvent(c(input$EvidenceExpectedRun,input$LGEvidenceExpectedRun),{
     } else {
       expectedResult$nsims<<-expectedResult$count+as.numeric(input$EvidenceExpected_length)*shortHandGain
     }
-    if (input$EvidenceExpectedRun>0 || input$LGEvidenceExpectedRun>0) {
+    if (input$EvidenceExpectedRun>0) {
       updateActionButton(session,"EvidenceExpectedRun",label=stopLabel)
-      updateActionButton(session,"LGEvidenceExpectedRun",label=stopLabel)
       notRunningExpected<<-FALSE
     }
   } else {
     expectedResult$nsims<<-expectedResult$count
     updateActionButton(session,"EvidenceExpectedRun",label="Run")
-    updateActionButton(session,"LGEvidenceExpectedRun",label="Run")
     notRunningExpected<<-TRUE
   }
 })
@@ -58,14 +56,7 @@ expectedUpdate<-observeEvent(input$EvidenceExpectedRun,{
 }
 ,priority=100
 )
-expectedLGUpdate<-observeEvent(input$LGEvidenceExpectedRun,{
-  if (input$LGEvidenceExpectedRun>0) {
-    updateTabsetPanel(session, "LGEvidenceGraphs",selected = "Expect")
-    validExpected<<-TRUE
-  }
-}
-,priority=100
-)
+
 observeEvent(input$EvidenceExpected_type,{
   if (!is.element(input$EvidenceExpected_type,c("NHSTErrors","FDR","CILimits","2D"))) {
     switch(input$EvidenceExpected_type,
@@ -123,10 +114,8 @@ makeExpectedGraph <- function() {
   doit<-c(input$EvidenceExpected_type,input$EvidenceExpected_par1,input$EvidenceExpected_par2,input$EvidenceEffect_type,
           input$evidenceTheory,
           input$STMethod,input$alpha,
-          input$LGEvidenceExpected_type,input$LGEvidenceExpected_par1,input$LGEvidenceExpected_par2,input$LGEvidenceEffect_type,
           input$world_distr,input$world_distr_rz,input$world_distr_k,input$world_distr_Nullp,
-          input$LGEvidenceworld_distr,input$LGEvidenceworld_distr_rz,input$LGEvidenceworld_distr_k,input$LGEvidenceworld_distr_Nullp,
-          input$EvidenceExpectedRun,input$LGEvidenceExpectedRun)
+          input$EvidenceExpectedRun)
   
   cycleCount<<-cycleCount+1
   if (cycleCount<2) {
@@ -163,18 +152,19 @@ makeExpectedGraph <- function() {
   if (debug) {print("ExpectedPlot1 - start")}
   stopRunning<-TRUE
   
-  if (validExpected) {
-    
-    if (switches$showAnimation) {
-      min_ns<-floor(log10(expectedResult$nsims/100))
-      ns<-10^(floor(max(min_ns,log10(expectedResult$count))))
-      if (expectedResult$count+ns>expectedResult$nsims) {
-        ns<-expectedResult$nsims-expectedResult$count
-      }
-    } else {
+  if (!validExpected) {return(ggplot()+plotBlankTheme)}
+
+  if (switches$showAnimation) {
+    min_ns<-floor(log10(expectedResult$nsims/100))
+    ns<-10^(floor(max(min_ns,log10(expectedResult$count))))
+    if (expectedResult$count+ns>expectedResult$nsims) {
       ns<-expectedResult$nsims-expectedResult$count
     }
-    if (ns>0) {
+  } else {
+    ns<-expectedResult$nsims-expectedResult$count
+  }
+  
+  if (ns>0) {
       expected$doingNull<-FALSE
       if (showProgress) {
         if (expectedResult$count==0) {
@@ -184,11 +174,13 @@ makeExpectedGraph <- function() {
         }
       }
       expectedResult$result<<-doExpectedAnalysis(IV,IV2,DV,effect,design,evidence,expected,expectedResult$result,ns)
-    }
-    if (expectedResult$count<expectedResult$nsims) {
-      stopRunning<-FALSE
-    }
-    if (expected$type=="NHSTErrors" && 
+  }
+  
+  if (expectedResult$count<expectedResult$nsims) {
+    stopRunning<-FALSE
+  }
+  
+  if (expected$type=="NHSTErrors" && 
         (!effect$world$worldOn || (effect$world$worldOn && effect$world$populationNullp==0)) &&
          expectedResult$nullcount<expectedResult$nsims) {
         ns<-expectedResult$count-expectedResult$nullcount
@@ -215,12 +207,15 @@ makeExpectedGraph <- function() {
       expectedResult$nullresult$rIV<-expectedResult$result$rIV[nulls]
       expectedResult$nullresult$pIV<-expectedResult$result$pIV[nulls]
       expectedResult$nullresult$nval<-expectedResult$result$nval[nulls]
+      expectedResult$nullresult$df1<-expectedResult$result$df1[nulls]
       
       expectedResult$result$rpIV<-expectedResult$result$rpIV[!nulls]
       expectedResult$result$roIV<-expectedResult$result$roIV[!nulls]
       expectedResult$result$rIV<-expectedResult$result$rIV[!nulls]
       expectedResult$result$pIV<-expectedResult$result$pIV[!nulls]
       expectedResult$result$nval<-expectedResult$result$nval[!nulls]
+      expectedResult$result$df1<-expectedResult$result$df1[!nulls]
+      
       expectedResult$count<-length(expectedResult$result$rIV)
       expectedResult$nullcount<-length(expectedResult$nullresult$rIV)
     }
@@ -230,8 +225,7 @@ makeExpectedGraph <- function() {
     if (stopRunning) {
       if (showProgress) {removeNotification(id = "counting")}
     }
-  }
-  
+
   # if (expectedResult$count==0) { return(ggplot()+plotBlankTheme) }
   
   g<-ggplot()+plotBlankTheme+theme(plot.margin=margin(0,-0.2,0,0,"cm"))
@@ -248,8 +242,8 @@ makeExpectedGraph <- function() {
     if (is.element(expected$type,c("NHSTErrors","FDR","CILimits","LLRDErrors"))) {
       switch (expected$type,
               "NHSTErrors"={
-                g1<-e1_plot(expectedResult$nullresult,effect=effect,result=expectedResult$result)
-                g2<-e2_plot(expectedResult$result,effect=effect,nullresult=expectedResult$nullresult)
+                g1<-e2_plot(expectedResult$result,effect=effect,nullresult=expectedResult$nullresult)
+                g2<-e1_plot(expectedResult$nullresult,effect=effect,result=expectedResult$result)
               },
               "FDR"={
                 g1<-e1_plot(expectedResult$nullresult,effect=effect)
@@ -277,11 +271,7 @@ makeExpectedGraph <- function() {
     }
   } else {
     updateActionButton(session,"EvidenceExpectedRun",label="Run")
-    updateActionButton(session,"LGEvidenceExpectedRun",label="Run")
     notRunningExpected<<-TRUE
-    # n<-expectedResult$result$nval
-    # fd<-fitdist(n[,1]-min(n)+1,"gamma",method="mge")
-    # print(c(fd$estimate["shape"],1/fd$estimate["rate"]))
   }
   return(g)
 }
@@ -289,20 +279,24 @@ makeExpectedGraph <- function() {
 output$ExpectedPlot <- renderPlot({
   if (debug) {debugPrint("ExpectedPlot")}
   doit<-c(input$EvidenceExpected_type,input$EvidenceExpected_par1,input$EvidenceExpected_par2,input$EvidenceEffect_type,
-          input$LGEvidenceExpected_type,input$LGEvidenceExpected_par1,input$LGEvidenceExpected_par2,input$LGEvidenceEffect_type,
-          input$EvidenceExpectedRun,input$LGEvidenceExpectedRun)
+          input$EvidenceExpectedRun)
   g<-makeExpectedGraph()
   if (debug) {debugPrint("ExpectedPlot - exit")}
   g
 })
 
-# expected report
-output$ExpectedReport <- renderPlot({
-  if (debug) debugPrint("ExpectedReport")
-  doIt<-input$EvidenceExpectedRun
+output$ExpectedPlot1 <- renderPlot({
+  if (debug) {debugPrint("ExpectedPlot")}
+  doit<-c(input$EvidenceExpected_type,input$EvidenceExpected_par1,input$EvidenceExpected_par2,input$EvidenceEffect_type,
+          input$EvidenceExpectedRun)
+  g<-makeExpectedGraph()
+  if (debug) {debugPrint("ExpectedPlot - exit")}
+  g
+})
+
+makeExpectedReport<-function() {
   llrConsts<-c(input$llr1,input$llr2)
   
-  if (debug) {print("ExpectedReport - start")}
   IV<-updateIV()
   IV2<-updateIV2()
   DV<-updateDV()
@@ -323,12 +317,15 @@ output$ExpectedReport <- renderPlot({
       expectedResult$nullresult$rIV<-expectedResult$result$rIV[nulls]
       expectedResult$nullresult$pIV<-expectedResult$result$pIV[nulls]
       expectedResult$nullresult$nval<-expectedResult$result$nval[nulls]
+      expectedResult$nullresult$df1<-expectedResult$result$df1[nulls]
       
       expectedResult$result$rpIV<-expectedResult$result$rpIV[!nulls]
       expectedResult$result$roIV<-expectedResult$result$roIV[!nulls]
       expectedResult$result$rIV<-expectedResult$result$rIV[!nulls]
       expectedResult$result$pIV<-expectedResult$result$pIV[!nulls]
       expectedResult$result$nval<-expectedResult$result$nval[!nulls]
+      expectedResult$result$df1<-expectedResult$result$df1[!nulls]
+      
       expectedResult$count<-length(expectedResult$result$rIV)
       expectedResult$nullcount<-length(expectedResult$nullresult$rIV)
     }
@@ -356,7 +353,24 @@ output$ExpectedReport <- renderPlot({
     # invalidateLater(pauseWait)
   } 
   
-  if (debug) {debugPrint("ExpectedReport - exit")}
   return(g)
+}
+
+# expected report
+output$ExpectedReport <- renderPlot({
+  if (debug) debugPrint("ExpectedReport")
+  doIt<-input$EvidenceExpectedRun
+  g<-makeExpectedReport()
+  if (debug) {debugPrint("ExpectedReport - exit")}
+  g
 })
+
+output$ExpectedReport1 <- renderPlot({
+  if (debug) debugPrint("ExpectedReport")
+  doIt<-input$EvidenceExpectedRun
+  g<-makeExpectedReport()
+  if (debug) {debugPrint("ExpectedReport - exit")}
+  g
+})
+
 ##################################################################################    

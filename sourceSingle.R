@@ -12,7 +12,7 @@ onlyAnalysis<-FALSE
 observeEvent(c(input$Welch,input$evidenceCaseOrder,input$analysisType,input$dataType,input$rInteractionOn),{
   onlyAnalysis<<-TRUE
 },priority=100)
-observeEvent(c(input$EvidencenewSample,input$LGEvidencenewSample),{
+observeEvent(c(input$EvidencenewSample),{
   onlyAnalysis<<-FALSE
 },priority=100)
 
@@ -25,15 +25,6 @@ sampleUpdate<-observeEvent(c(input$Single,input$EvidencenewSample,input$Evidence
                        selected = "Sample")
       updateTabsetPanel(session, "Reports",
                         selected = "Sample")
-    }
-  }
-}
-)
-observeEvent(input$LGEvidencenewSample,{
-  if (input$LGEvidencenewSample>0) {
-    if (!is.element(input$LGEvidenceGraphs,c("Sample","Describe","Infer")))
-    {updateTabsetPanel(session, "LGEvidenceGraphs",
-                       selected = "Sample")
     }
   }
 }
@@ -70,9 +61,9 @@ doSampleAnalysis<-function(IV,IV2,DV,effect,design,evidence){
 }
 
 # eventReactive wrapper
-sampleAnalysis<-eventReactive(c(input$EvidenceHypothesisApply,input$EvidencenewSample,input$LGEvidencenewSample,
+sampleAnalysis<-eventReactive(c(input$EvidenceHypothesisApply,input$EvidencenewSample,
                                 input$Welch,input$evidenceCaseOrder,input$analysisType,input$dataType,input$rInteractionOn),{
-  if (any(input$EvidenceHypothesisApply,input$EvidencenewSample,input$LGEvidencenewSample)>0){
+  if (any(input$EvidenceHypothesisApply,input$EvidencenewSample)>0){
     validSample<<-TRUE
     IV<-updateIV()
     IV2<-updateIV2()
@@ -91,8 +82,8 @@ sampleAnalysis<-eventReactive(c(input$EvidenceHypothesisApply,input$EvidencenewS
     
     # set the result into likelihood: populations
     if (!is.na(result$rIV)) {
-      updateNumericInput(session,"likelihoodPSampRho",value=result$rIV)
-      updateNumericInput(session,"likelihoodSampRho",value=result$rIV)
+      updateNumericInput(session,"possiblePSampRho",value=result$rIV)
+      updateNumericInput(session,"possibleSampRho",value=result$rIV)
     }
     removeNotification(id = "counting")
   } else {
@@ -163,10 +154,7 @@ makeDescriptiveGraph <- function(){
   
   # make the sample
   result<-sampleAnalysis()
-  if (is.null(result) ||  !validSample)  {
-    # validate("Sample is empty")
-    return(ggplot()+plotBlankTheme)
-  }
+  if (is.null(result) ||  !validSample)  {return(ggplot()+plotBlankTheme)}
   if (is.na(result$rIV)) {
     validate("IV has no variability")
     return(ggplot()+plotBlankTheme)
@@ -264,7 +252,7 @@ makeDescriptiveGraph <- function(){
 
 # single inferential graph
 makeInferentialGraph <- function() {
-  doit<-c(input$EvidenceInfer_type,input$LGEvidenceInfer_type,input$evidenceTheory,
+  doit<-c(input$EvidenceInfer_type,input$evidenceTheory,
           input$Welch,input$evidenceCaseOrder,input$analysisType,input$dataType,input$rInteractionOn)
   doIt<-editVar$data
   llrConsts<-c(input$llr1,input$llr2)
@@ -280,10 +268,11 @@ makeInferentialGraph <- function() {
   evidence<-updateEvidence()
   
   result<-sampleAnalysis()
-  if (is.null(result)) {
-    result<-list(rIV=NA,effect=effect,design=design,evidence=evidence)
-  }
-  # if (is.null(result) ||  !validSample)  {return(ggplot()+plotBlankTheme)}
+  if (is.null(result) ||  !validSample)  {return(ggplot()+plotBlankTheme)}
+  
+  # if (is.null(result)) {
+  #   result<-list(rIV=NA,effect=effect,design=design,evidence=evidence)
+  # }
   if (is.na(result$rIV) && validSample) {
     validate("IV has no variability")
     return(ggplot()+plotBlankTheme)
@@ -295,7 +284,7 @@ makeInferentialGraph <- function() {
   g<-ggplot()+plotBlankTheme+theme(plot.margin=margin(0,-0.2,0,0,"cm"))+
     scale_x_continuous(limits = c(0,10),labels=NULL,breaks=NULL)+scale_y_continuous(limits = c(0,10),labels=NULL,breaks=NULL)
   
-  switch (input$EvidenceInfer_type,
+    switch (input$EvidenceInfer_type,
           "EffectSize"={
             g1<-drawInference(IV,IV2,DV,effect,design,evidence,result,"r")
             g2<-drawInference(IV,IV2,DV,effect,design,evidence,result,"p")
@@ -303,6 +292,10 @@ makeInferentialGraph <- function() {
           "Power"= {
             g1<-drawInference(IV,IV2,DV,effect,design,evidence,result,"w")
             g2<-drawInference(IV,IV2,DV,effect,design,evidence,result,"nw")
+          },
+          "2D"= {
+            g1<-draw2Inference(IV,IV2,DV,effect,design,evidence,result,"r","p")
+            return(g+annotation_custom(grob=ggplotGrob(g1+gridTheme),xmin=1,xmax=9,ymin=0,ymax=10))
           },
           "log(lrs)"={
             g1<-drawInference(IV,IV2,DV,effect,design,evidence,result,"log(lrs)")
@@ -335,6 +328,30 @@ output$DescriptivePlot <- renderPlot({
 })
 
 output$InferentialPlot <- renderPlot({
+  if (debug) debugPrint("InferentialPlot")
+  doIt<-editVar$data
+  g<-makeInferentialGraph()
+  if (debug) debugPrint("InferentialPlot - exit")
+  g
+})
+
+output$SamplePlot1 <- renderPlot({
+  if (debug) debugPrint("SamplePlot")
+  doIt<-editVar$data
+  g<-makeSampleGraph()
+  if (debug) debugPrint("SamplePlot - exit")
+  g
+})
+
+output$DescriptivePlot1 <- renderPlot({
+  if (debug) debugPrint("DescriptivePlot")
+  doIt<-editVar$data
+  g<-makeDescriptiveGraph()
+  if (debug) debugPrint("DescriptivePlot - exit")
+  g
+})
+
+output$InferentialPlot1 <- renderPlot({
   if (debug) debugPrint("InferentialPlot")
   doIt<-editVar$data
   g<-makeInferentialGraph()
@@ -430,6 +447,30 @@ output$DescriptiveReport <- renderPlot({
 })
 
 output$InferentialReport <- renderPlot({
+  if (debug) debugPrint("InferentialReport")
+  doIt<-editVar$data
+  g<-makeInferentialReport()
+  if (debug) debugPrint("InferentialReport - exit")
+  g
+})
+
+output$SampleReport1 <- renderPlot({
+  if (debug) debugPrint("SampleReport")
+  doIt<-editVar$data
+  g<-makeSampleReport()
+  if (debug) debugPrint("SampleReport - exit")
+  g
+})
+
+output$DescriptiveReport1 <- renderPlot({
+  if (debug) debugPrint("DescriptiveReport")
+  doIt<-editVar$data
+  g<-makeDescriptiveReport()
+  if (debug) debugPrint("DescriptiveReport - exit")
+  g
+})
+
+output$InferentialReport1 <- renderPlot({
   if (debug) debugPrint("InferentialReport")
   doIt<-editVar$data
   g<-makeInferentialReport()

@@ -31,6 +31,13 @@ updateEffect<-function(type=0){
                  world=world
     )
   }
+  if (effect$Heteroscedasticity!=0 && shortHand) {
+    hmm("Please switch to longhand calculations: heteroscedasticity")
+  }
+  if (effect$ResidDistr!="normal" && shortHand) {
+    hmm("Please switch to longhand calculations: heteroscedasticity")
+  }
+  
   if (effect$world$worldOn==FALSE) {
     effect$world$populationPDF<-"Single"
     effect$world$populationRZ<-"r"
@@ -56,14 +63,15 @@ updateEffect<-function(type=0){
 updateDesign<-function(){
   if (debug) debugPrint("     updateDesign")
   design<-list(sN=input$sN, sNRand=input$sNRand,sNRandK=input$sNRandK,
+               sBudgetOn=input$sBudgetOn,sNBudget=input$sNBudget,
                sMethod=input$sMethod ,sIV1Use=input$sIV1Use,sIV2Use=input$sIV2Use, 
                sRangeOn=input$sRangeOn, sIVRange=input$sIVRange, sDVRange=input$sDVRange, 
                sDependence=input$sDependence, sOutliers=input$sOutliers, sClustering=input$sClustering,
-               sCheating=input$sCheating,sCheatingAmount=input$sCheatingAmount,
+               sCheating=input$sCheating,sCheatingLimit=input$sCheatingLimit,sCheatingAmount=input$sCheatingAmount,sCheatingBudget=input$sCheatingBudget,
                sReplicationOn=input$sReplicationOn,
                sReplPowerOn=input$sReplPowerOn,sReplPower=input$sReplPower,
                sReplSigOnly=input$sReplSigOnly,
-               sReplRepeats=input$sReplRepeats,sReplUseBudget=input$sReplUseBudget,sReplBudget=1000,
+               sReplType=input$sReplType,sReplRepeats=input$sReplRepeats,sReplBudget=1000,
                sReplCorrection=input$sReplCorrection,sReplTails=input$sReplTails,
                sReplKeep=input$sReplKeep,
                sReplVarAlpha=input$sReplVarAlpha,sReplAlpha=input$sReplAlpha,
@@ -72,6 +80,19 @@ updateDesign<-function(){
                sNClu_Convenience=input$sNClu_Convenience, sRClu_Convenience=input$sRClu_Convenience, sNCont_Convenience=input$sNCont_Convenience, sRCont_Convenience=input$sRCont_Convenience, sRSpread_Convenience=input$sRSpread_Convenience,
                sNClu_Snowball=input$sNClu_Snowball, sRClu_Snowball=input$sRClu_Snowball, sNCont_Snowball=input$sNCont_Snowball, sRCont_Snowball=input$sRCont_Snowball, sRSpread_Snowball=input$sRSpread_Snowball
   )
+  
+  if (is.element(design$sCheating,c("Grow","Replace")) && shortHand) {
+    hmm("Please switch to longhand calculations: cheating")
+  }
+  
+  if (design$sMethod!="Random" && shortHand) {
+    hmm("Please switch to longhand calculations: sampling")
+  }
+  
+  if (any(c(design$sDependence,design$sOutliers)!=0) && shortHand) {
+    hmm("Please switch to longhand calculations: anomalies")
+  }
+  
   design$sN<-checkNumber(design$sN,c=10)
   if (is.null(oldDesign)) {
     design$sNRandK<-checkNumber(design$sNRandK)
@@ -119,9 +140,9 @@ updateEvidence<-function(){
            if (pPlus) evidence$prior$populationNullp<-1-evidence$prior$populationNullp
          },
          "prior"={
-           evidence$prior=list(worldOn=TRUE,populationPDF=input$likelihoodPrior_distr,
-                               populationPDFk=input$likelihoodPrior_distr_k,populationRZ=input$likelihoodPrior_distr_rz,
-                               populationNullp=input$likelihoodPrior_Nullp)
+           evidence$prior=list(worldOn=TRUE,populationPDF=input$possiblePrior_distr,
+                               populationPDFk=input$possiblePrior_distr_k,populationRZ=input$possiblePrior_distr_rz,
+                               populationNullp=input$possiblePrior_Nullp)
            if (pPlus) evidence$prior$populationNullp<-1-evidence$prior$populationNullp
          }
   )

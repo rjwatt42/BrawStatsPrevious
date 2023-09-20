@@ -20,35 +20,10 @@ observeEvent(input$metaRun,{
       }
       metaResult$nsims<<-metaResult$count+as.numeric(input$meta_runlength)
       updateActionButton(session,"metaRun",label=stopLabel)
-      updateActionButton(session,"LGmetaRun",label=stopLabel)
       notRunningMeta<<-FALSE
     } else {
       metaResult$nsims<<-metaResult$count
       updateActionButton(session,"metaRun",label="Run")
-      updateActionButton(session,"LGmetaRun",label="Run")
-      notRunningMeta<<-TRUE
-    }
-  }
-}
-,priority=100
-)
-
-observeEvent(input$LGmetaRun,{
-  if (debug) print("LGmetaRun")
-  if (input$LGmetaRun>0) {
-    if (notRunningMeta) {
-      validMeta<<-TRUE
-      if (!input$LGmeta_append) {
-        resetMeta()
-      }
-      metaResult$nsims<<-metaResult$count+as.numeric(input$LGmeta_runlength)
-      updateActionButton(session,"metaRun",label=stopLabel)
-      updateActionButton(session,"LGmetaRun",label=stopLabel)
-      notRunningMeta<<-FALSE
-    } else {
-      metaResult$nsims<<-metaResult$count
-      updateActionButton(session,"metaRun",label="Run")
-      updateActionButton(session,"LGmetaRun",label="Run")
       notRunningMeta<<-TRUE
     }
   }
@@ -74,6 +49,9 @@ updateMetaAnalysis<-function(){
     showTheory=input$evidenceTheory,
     append=input$meta_append
   )
+  if (metaAnalysis$meta_showParams==paste0(Pchar,"-",Lchar)) {metaAnalysis$meta_showParams<-"n-k"}
+  if (metaAnalysis$meta_showParams==paste0("S-",Lchar)) {metaAnalysis$meta_showParams<-"S-k"}
+
   if (metaAnalysis$meta_pdf!="All") metaAnalysis$meta_showAnal<-metaAnalysis$meta_pdf
   metaAnalysis
 }    
@@ -119,7 +97,7 @@ doMetaAnalysis<-function(IV,IV2,DV,effect,design,evidence,metaAnalysis,metaResul
 # Expected outputs
 # show expected result    
 makeMetaGraph <- function() {
-  doit<-c(input$metaRun,input$LGmetaRun)
+  doit<-c(input$metaRun)
   
   if (!validMeta) {return(ggplot()+plotBlankTheme)}
   
@@ -159,7 +137,7 @@ makeMetaGraph <- function() {
     metaAnalysis$append<-TRUE
     ns<-10^(min(2,floor(log10(max(1,metaResult$count)))))
     if (showProgress) {
-      showNotification(paste0("A MetaAnalysis: ",metaResult$count,"/",metaResult$nsims),id="counting",duration=Inf,closeButton=FALSE,type="message")
+      showNotification(paste0("MetaAnalysis: ",metaResult$count,"/",metaResult$nsims),id="counting",duration=Inf,closeButton=FALSE,type="message")
     }
     for (i in 1:ns) {
       metaResult<<-doMetaAnalysis(IV,IV2,DV,effect,design,evidence,metaAnalysis,metaResult)
@@ -222,7 +200,6 @@ makeMetaGraph <- function() {
     }
   } else {
     updateActionButton(session,"metaRun",label="Run")
-    updateActionButton(session,"LGmetaRun",label="Run")
     notRunningMeta<<-TRUE
   }
   
@@ -235,16 +212,18 @@ output$MetaAnalysisPlot <- renderPlot({
   makeMetaGraph()
 })
 
-
-output$MetaAnalysisReport <- renderPlot({
+output$MetaAnalysisPlot1 <- renderPlot({
   doit<-c(input$metaRun)
-  
+  makeMetaGraph()
+})
+
+makeMetaReport<-function() {
   if (metaResult$count>0) {
     g<-reportMetaAnalysis(metaResult)
   } else {
     g<-ggplot()+plotBlankTheme
   }
-
+  
   if (metaResult$count<metaResult$nsims) {
     if (doStop) {
       invalidateLater(mean(as.numeric(silentTime))*1000+pauseWait)
@@ -254,6 +233,14 @@ output$MetaAnalysisReport <- renderPlot({
   }
   
   return(g)      
+}
+output$MetaAnalysisReport <- renderPlot({
+  doit<-c(input$metaRun)
+  makeMetaReport()
+})
+output$MetaAnalysisReport1 <- renderPlot({
+  doit<-c(input$metaRun)
+  makeMetaReport()
 })
 
 ##################################################################################    

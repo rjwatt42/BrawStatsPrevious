@@ -1,7 +1,7 @@
 ####################################
 #KEYBOARD: capture keyboard events
 
-source("loadExtras.R")
+source("extras.R")
 
 ascii<-function(ch) strtoi(charToRaw(toupper(ch)),16L)
 
@@ -14,7 +14,12 @@ if (switches$doKeys) {
     if (input$keypress==18) altKeyOn<<-TRUE
 
     if (input$keypress==ascii("x") && controlKeyOn){
-      loadExtras(session)
+      updateCheckboxInput(session,"LoadExtras",value=!input$LoadExtras)
+    }
+    
+    if (input$keypress==ascii("w") && controlKeyOn && shiftKeyOn){
+      was<-input$WhiteGraphs
+      updateCheckboxInput(session,"WhiteGraphs",value=!was)
     }
     
     # control-m - add in meta-analysis
@@ -32,6 +37,18 @@ if (switches$doKeys) {
       updateSelectInput(session,"Explore_showD",selected="NHSTErrors")
       updateCheckboxInput(session,"Explore_xlog",value=TRUE)
       updateNumericInput(session,"Explore_nRange",value=10000)
+    }
+    
+    if (input$keypress==ascii("w") && controlKeyOn){
+      updateNumericInput(session,"possiblePSampRho",value=0)
+      updateSelectInput(session,"possibleShow",selected="Power")
+      updateTabsetPanel(session, "PossiblePanel",selected="Populations")
+    }
+    
+    # toggle LARGE GRAPHS
+    if (input$keypress==ascii("g") && controlKeyOn){
+      was<-input$LargeGraphs
+      updateCheckboxInput(session,"LargeGraphs",value=!was)
     }
     
     if (input$keypress==ascii("z") && controlKeyOn){
@@ -59,7 +76,7 @@ if (switches$doKeys) {
     
     if (pPlus) {v<-0.26}
     else       {v<-0.74}
-    # control-alt-p set world to model psych
+    # control-shift-p set world to model psych
     if (input$keypress==ascii("p") && controlKeyOn){
       loadExtras(session)
       updateCheckboxInput(session,"world_on",value=TRUE)
@@ -77,6 +94,23 @@ if (switches$doKeys) {
       
     }
     
+    if (input$keypress==ascii("G") && controlKeyOn){
+      loadExtras(session)
+      updateCheckboxInput(session,"world_on",value=TRUE)
+      updateSelectInput(session,"world_distr",selected="Gauss")
+      updateSelectInput(session,"world_distr_rz",selected="z")
+      updateNumericInput(session,"world_distr_k",value=0.3)
+      updateNumericInput(session,"world_distr_Nullp",value=0.6)
+      updateTabsetPanel(session,"HypothesisDiagram",selected="World")
+      
+      if (shiftKeyOn) {
+        updateCheckboxInput(session,"sNRand",value=FALSE)
+        updateNumericInput(session,"sNRandK",value=1.2)
+        updateNumericInput(session,"sN",value=29)
+      }
+      
+    }
+    
     # control-l set shortHand to TRUE
     if (input$keypress==ascii("l") && controlKeyOn){
       updateCheckboxInput(session,"shortHand",value=!input$shortHand)
@@ -88,7 +122,7 @@ if (switches$doKeys) {
     # control-t set showTheory to TRUE
     if (input$keypress==ascii("t") && controlKeyOn){
       updateCheckboxInput(session,"evidenceTheory",value=TRUE)
-      updateCheckboxInput(session,"likelihoodTheory",value=TRUE)
+      updateCheckboxInput(session,"possibleTheory",value=TRUE)
     }
     
   })

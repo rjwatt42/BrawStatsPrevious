@@ -20,8 +20,9 @@ drawNHSTLabel<-function(lb1,lb1xy,xoff,col1) {
     lb1<-deparse(lb1)
     mathlabel<-TRUE
   }
+  if (sum(col2rgb(col1))>128*3) col<-"black" else col<-"white"
   geom_label(data=lb1xy,aes(x=x+xoff,y=y),label=lb1,
-             hjust=-0.2,vjust=0.5,size=4,colour="white",fill=col1,parse=mathlabel)
+             hjust=-0.2,vjust=0.5,size=labelSize,colour=col,fill=col1,parse=mathlabel)
 }
 
 drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
@@ -38,20 +39,20 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
   g<-ggplot()
   ybreaks=c()
   ylabels=c()
+  secondY<-NULL
   switch (explore$Explore_show,
           "EffectSize"={
             ylim<-c(-1,1)
             if (RZ=="z") {
               ylim<-c(-1,1*z_range)
             }
-            g<-g+scale_y_continuous(limits=ylim)
-            ylabel<-bquote(r[sample])
-            if (RZ=="z") {ylabel<-bquote(z[sample])}
+            ylabel<-bquote(bold(r['s']))
+            if (RZ=="z") {ylabel<-bquote(bold(z['s']))}
           },
           "p"={
             if (pPlotScale=="log10") {
               ylim<-c(-4,0.1)
-              ylabel<-bquote(log[10](p))
+              ylabel<-bquote(bold(log['10'](p)))
               ybreaks<-c(-4,-3,-2,-1,0)
               ylabels<-c(0.0001,0.001,0.01,0.1,1)
             } else {
@@ -60,87 +61,83 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
               ybreaks<-seq(0,1,0.2)
               ylabels<-ybreaks
             }
-            g<-g+scale_y_continuous(limits=ylim,breaks=ybreaks,labels=ylabels)
+            g<-g+scale_y_continuous(breaks=ybreaks,labels=ylabels)
           },
           "w"={
             if (wPlotScale=="log10"){
               ylim<-c(-2,0)
-              ylabel<-bquote(log[10](w[est]))
+              ylabel<-bquote(bold(log['10'](w['est'])))
               ybreaks=c(-2,-1,0)
               ylabels=c(0.01,0.1,1)
-              g<-g+scale_y_continuous(limits=ylim,breaks=ybreaks,labels=ylabels)
+              g<-g+scale_y_continuous(breaks=ybreaks,labels=ylabels)
             } else {
               ylim<-c(0,1)
-              ylabel<-bquote(w[est])
-              g<-g+scale_y_continuous(limits=ylim)
+              ylabel<-bquote(bold(w['est']))
             }
           },
           "p(sig)"={
             ylabel<-pSigLabel
-            ylim<-c(0,1)
-            g<-g+scale_y_continuous(limits=ylim)
+            if (explore$Explore_ylog) {
+              ylim<-c(0.001,1)
+            } else {
+              ylim<-c(0,1)
+            }
           },
           "FDR"={
-            ylim<-c(0,1)
+            if (explore$Explore_ylog) {
+              ylim<-c(0.001,1)
+            } else {
+              ylim<-c(0,1)
+            }
             ylabel<-"False Discovery"
-            g<-g+scale_y_continuous(limits=ylim)
           },
           "NHSTErrors"={
             ylim<-c(0,1)
             if (ErrorsWorld=="1scale") {
               ylabel<-"Results"
-              g<-g+scale_y_continuous(limits=ylim)
             } else {
               ylabel<-"Type I"
-              g<-g+scale_y_continuous(limits=ylim,sec.axis=sec_axis(~ 1-.,name="Type II"))
-              g<-g+theme(axis.title.y.left = element_text(color=plotcolours$infer_hiterr),axis.title.y.right = element_text(color=plotcolours$infer_misserr))
+              secondY<-"Type II"
+              g<-g+theme(axis.title.y.left = element_text(color=plotcolours$infer_sigNull),axis.title.y.right = element_text(color=plotcolours$infer_nsNonNull))
             }
           },
           "FDR;FMR"={
             ylim<-c(0,1)
             ylabel<-"False Discovery"
-              g<-g+scale_y_continuous(limits=ylim,sec.axis=sec_axis(~ 1-.,name="False Miss"))
+            secondY<-"False Miss"
               g<-g+theme(axis.title.y.left = element_text(color=plotcolours$fdr),axis.title.y.right = element_text(color=plotcolours$fmr))
           },
           "log(lrs)"={
             ylim<-c(-0.1,10)
-            ylabel<-bquote(log[e](lr[s]))
-            g<-g+scale_y_continuous(limits=ylim)
+            ylabel<-bquote(bold(log['e'](lr['s'])))
           },
           "log(lrd)"={
             ylim<-c(-1,1)*lrRange
-            ylabel<-bquote(log[e](lr[d]))
-            g<-g+scale_y_continuous(limits=ylim)
+            ylabel<-bquote(bold(log['e'](lr['d'])))
           },
           "likelihood"={
             ylim<-c(-10,10)
-            ylabel<-bquote(log[e](lr[d]))
-            g<-g+scale_y_continuous(limits=ylim)
+            ylabel<-bquote(bold(log['e'](lr['d'])))
           },
           "k"={
             ylim<-c(-0.01,1.01)
             ylabel<-Llabel
-            g<-g+scale_y_continuous(limits=ylim)
           },
           "SampleSize"={
             ylim<-c(minN,maxRandN*design$sN)
             ylabel<-"n"
-            g<-g+scale_y_continuous(limits=ylim)
           },
           "pNull"={
             ylim<-c(-0.01,1.01)
             ylabel<-Plabel
-            g<-g+scale_y_continuous(limits=ylim)
           },
           "PDF"={
             ylim<-c(0,1)
             ylabel<-"p(PDF)"
-            g<-g+scale_y_continuous(limits=ylim)
           },
           "S"={
             ylim<-c(min(exploreResult$result$Ss),max(exploreResult$result$Ss))
             ylabel<-"S"
-            g<-g+scale_y_continuous(limits=ylim)
           },
           "mean(IV)"={ylabel<-"mean(IV)"},
           "sd(IV)"={ylabel<-"sd(IV)"},
@@ -371,23 +368,52 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
               if (explore$Explore_type=="Alpha") {
                 alpha<-exploreResult$result$vals
               }
+              getStat<-function(x,n) {colMeans(x)}
               ps<-isSignificant(STMethod,pVals,rVals,nVals,df1Vals,exploreResult$evidence,alpha)
-              ps<-colMeans(ps)
-              p_se<-sqrt(ps*(1-ps)/nrow(pVals))
-              y50<-ps
-              y25<-ps+p_se*qnorm(0.25)
-              y38<-ps+p_se*qnorm(0.375)
-              y62<-ps+p_se*qnorm(0.625)
-              y75<-ps+p_se*qnorm(0.75)
+              ps_mn<-getStat(ps,nVals)
+              ps1<-colMeans(ps)
+              p_se<-sqrt(ps1*(1-ps1)/nrow(pVals))*(ps_mn/ps1)
+              y50<-ps_mn
+              y25<-ps_mn+p_se*qnorm(0.25)
+              y38<-ps_mn+p_se*qnorm(0.375)
+              y62<-ps_mn+p_se*qnorm(0.625)
+              y75<-ps_mn+p_se*qnorm(0.75)
               y50e<-c()
-
+              y50a<-c()
               lines<-c(0.05,0.8)
               if (is.null(IV2)){
                 col<-plotcolours$infer_sigC
+                cole<-plotcolours$infer_sigNull
+                cola<-plotcolours$infer_nsNonNull
                 colFill<-col
-                } else {
+              } else {
                 col<-all_cols[[explore$Explore_typeShow]]
                 colFill<-names(all_cols[explore$Explore_typeShow])
+              }
+              
+              if (effect$world$worldOn && effect$world$populationNullp>0) {
+                g<-g+scale_fill_manual(name="outcome",values=c(plotcolours$psig,plotcolours$infer_sigC,plotcolours$infer_sigNull))
+                col<-"sig"
+                cole<-"sig|Z0"
+                cola<-"sig|Z+"
+                nulls<-rpVals==0
+                ps_mn<-getStat(ps & nulls,nVals)
+                ps1<-colMeans(ps)
+                p_se<-sqrt(ps1*(1-ps1)/nrow(pVals))*(ps_mn/ps1)
+                y50e<-ps_mn
+                y25e<-ps_mn+p_se*qnorm(0.25)
+                y38e<-ps_mn+p_se*qnorm(0.375)
+                y62e<-ps_mn+p_se*qnorm(0.625)
+                y75e<-ps_mn+p_se*qnorm(0.75)
+                
+                ps_mn<-getStat(ps & !nulls,nVals)
+                ps1<-colMeans(ps)
+                p_se<-sqrt(ps1*(1-ps1)/nrow(pVals))*(ps_mn/ps1)
+                y50a<-ps_mn
+                y25a<-ps_mn+p_se*qnorm(0.25)
+                y38a<-ps_mn+p_se*qnorm(0.375)
+                y62a<-ps_mn+p_se*qnorm(0.625)
+                y75a<-ps_mn+p_se*qnorm(0.75)
               }
             },
             "FDR"={
@@ -410,6 +436,7 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
               y62<-p1+p_se*qnorm(0.625)
               y38<-p1+p_se*qnorm(0.375)
               y50[is.na(y50)]<-0
+              y50e<-c()
               
               col<-plotcolours$fdr
               colFill<-col
@@ -476,25 +503,17 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
               sigs<-isSignificant(STMethod,pVals,rVals,nVals,df1Vals,exploreResult$evidence,alpha)
               nulls<-rpVals==0
               if (STMethod=="NHST") {
-                y50t<-colSums(sigs & !nulls)/nrow(pVals) 
-                y50<-colSums(!sigs & !nulls)/nrow(pVals) 
-                y50et<-colSums(!sigs & nulls)/nrow(pVals) 
-                y50e<-colSums(sigs & nulls)/nrow(pVals) 
-                y50a<-y50*0
-                y50b<-y50*0
+                d<-sigs+1
               } else {
                 d<-r2llr(rVals,nVals,df1Vals,STMethod,world=effect$world)
-                y50t<-colSums(sigs & d>0 & !nulls)/nrow(pVals) 
-                y50<-colSums(sigs & d<0 & !nulls)/nrow(pVals) 
-                y50a<-colSums(!sigs & !nulls)/nrow(pVals) 
-                y50b<-colSums(sigs & d>0 & !nulls)/nrow(pVals) 
-                y50e<-colSums(sigs & d>0 & nulls)/nrow(pVals) 
-                y50ea<-colSums(!sigs & nulls)/nrow(pVals) 
-                y50eb<-colSums(sigs & d<0 & nulls)/nrow(pVals) 
               }
-              col<-plotcolours$infer_misserr
-              cole<-plotcolours$infer_hiterr
-              colFill<-col
+              sigNonNulls<- colSums( sigs & d>0 & !nulls)/nrow(pVals) 
+              nsigNonNulls<-colSums(!sigs &       !nulls)/nrow(pVals) 
+              isigNonNulls<-colSums( sigs & d<0 & !nulls)/nrow(pVals) 
+              isigNulls<-   colSums( sigs & d<0 & nulls)/nrow(pVals) 
+              sigNulls<-    colSums( sigs & d>0 & nulls)/nrow(pVals) 
+              nsigNulls<-   colSums(!sigs &       nulls)/nrow(pVals) 
+              
               lines<-c(0.05)
             },
             "FDR;FMR"={
@@ -505,20 +524,22 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
               nulls<-rpVals==0
               
               if (STMethod=="NHST") {
-                  y50<-colSums(!sigs & !nulls)/max(colSums(!sigs),1)
-                  y50e<-colSums(sigs & nulls)/max(colSums(sigs),1)
+                d<-sigs+1
               } else {
                 d<-r2llr(rVals,nVals,df1Vals,STMethod,world=effect$world)
-                y50<-colMeans(!sigs,na.rm=TRUE)
-                y50e<-(colSums(sigs & nulls & d>0)+colSums(sigs & !nulls & d<0))/max(colSums(sigs),1)
               }
-              y50a<-y50*0
-              y50b<-y50*0
-              
+              sumsig<-colSums(sigs)
+              sumsig[sumsig==0]<-1
+              sumnsig<-colSums(!sigs)
+              sumnsig[sumnsig==0]<-1
+              sigNonNulls<- 0 
+              nsigNonNulls<-colSums(!sigs &       !nulls)/sumnsig 
+              isigNonNulls<-colSums( sigs & d<0 & !nulls)/sumsig 
+              isigNulls<-   0 
+              sigNulls<-    colSums( sigs & d>0 & nulls)/sumsig
+              nsigNulls<-   colSums(!sigs & abs(d)<alpha  &    nulls)/sumnsig
+
               lines<-c(0.05)
-              cole<-plotcolours$fdr
-              col<-plotcolours$fmr
-              colFill<-col
             },      
             "PDF"={
               showVals<-exploreResult$result$dists
@@ -539,7 +560,6 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
               colFill<-col
             }
     )
-    alpha<<-oldAlpha
     
     vals_offset<-0
     valsRange<-1
@@ -612,102 +632,249 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
 
     # p(sig) and FDR
     if (is.element(explore$Explore_show,c("p(sig)","FDR"))) {
-      pts1<-data.frame(vals=vals+vals_offset,y50=y50)
-      if (doLine) {
-        pts1f<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y25,rev(y75)))
-        pts2f<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y38,rev(y62)))
-        if (ni_max2==1 || !no_se_multiple) {
-          g<-g+geom_polygon(data=pts1f,aes(x=x,y=y),fill=col,alpha=0.5)
-          g<-g+geom_polygon(data=pts2f,aes(x=x,y=y),fill=col,alpha=0.45)
+      if (isempty(y50e)) {
+        pts1<-data.frame(vals=vals+vals_offset,y50=y50)
+        if (doLine) {
+          pts1f<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y25,rev(y75)))
+          pts2f<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y38,rev(y62)))
+          if (ni_max2==1 || !no_se_multiple) {
+            g<-g+geom_polygon(data=pts1f,aes(x=x,y=y),fill=col,alpha=0.5)
+            g<-g+geom_polygon(data=pts2f,aes(x=x,y=y),fill=col,alpha=0.45)
+          }
+          g<-g+geom_line(data=pts1,aes(x=vals,y=y50),color="black")
+        } else{
+          if (ni_max2==1 || !no_se_multiple){
+            g<-g+geom_errorbar(data=pts1,aes(x=vals,ymin=y25,ymax=y75,width=0.7/length(vals)))
+          }
         }
-        g<-g+geom_line(data=pts1,aes(x=vals,y=y50),color="black")
-      } else{
-        if (ni_max2==1 || !no_se_multiple){
-          g<-g+geom_errorbar(data=pts1,aes(x=vals,ymin=y25,ymax=y75,width=0.7/length(vals)))
+        if (use_col_names){
+          pts1<-data.frame(x=vals+vals_offset,y=y50,fill=explore$Explore_typeShow)
+          g<-g+geom_point(data=pts1,aes(x=x,y=y,fill=fill),shape=shapes$parameter, colour = "black", size = markersize)
+        } else {
+          g<-g+geom_point(data=pts1,aes(x=vals,y=y50),shape=shapes$parameter, fill=col,colour = "black",size = markersize)
         }
-      }
-      if (use_col_names){
-        pts1<-data.frame(x=vals+vals_offset,y=y50,fill=explore$Explore_typeShow)
-        g<-g+geom_point(data=pts1,aes(x=x,y=y,fill=fill),shape=shapes$parameter, colour = "black", size = markersize)
       } else {
-        g<-g+geom_point(data=pts1,aes(x=vals,y=y50),shape=shapes$parameter, colour = "black",fill=col, size = markersize)
+        pts1<-data.frame(vals=vals+vals_offset,y50=y50,fill=col)
+        if (doLine) {
+          pts1f<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y25,rev(y75)),fill=col)
+          pts2f<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y38,rev(y62)),fill=col)
+          if (ni_max2==1 || !no_se_multiple) {
+            g<-g+geom_polygon(data=pts1f,aes(x=x,y=y,fill=fill),alpha=0.5)
+            g<-g+geom_polygon(data=pts2f,aes(x=x,y=y,fill=fill),alpha=0.45)
+          }
+          g<-g+geom_line(data=pts1,aes(x=vals,y=y50),color="black")
+        } else{
+          if (ni_max2==1 || !no_se_multiple){
+            g<-g+geom_errorbar(data=pts1,aes(x=vals,ymin=y25,ymax=y75,width=0.7/length(vals)))
+          }
+        }
+        if (use_col_names){
+          pts1<-data.frame(x=vals+vals_offset,y=y50,fill=explore$Explore_typeShow)
+          g<-g+geom_point(data=pts1,aes(x=x,y=y,fill=fill),shape=shapes$parameter, colour = "black", size = markersize)
+        } else {
+          g<-g+geom_point(data=pts1,aes(x=vals,y=y50,fill=fill),shape=shapes$parameter, colour = "black",size = markersize)
+        }
+        if (!isempty(y50e)) {
+          pts1<-data.frame(vals=vals+vals_offset,y50=y50e,fill=cole)
+          if (doLine) {
+            pts1f<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y25e,rev(y75e)),fill=cole)
+            pts2f<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y38e,rev(y62e)),fill=cole)
+            if (ni_max2==1 || !no_se_multiple) {
+              g<-g+geom_polygon(data=pts1f,aes(x=x,y=y,fill=fill),alpha=0.5)
+              g<-g+geom_polygon(data=pts2f,aes(x=x,y=y,fill=fill),alpha=0.45)
+            }
+            g<-g+geom_line(data=pts1,aes(x=vals,y=y50),color="black")
+          } else{
+            if (ni_max2==1 || !no_se_multiple){
+              g<-g+geom_errorbar(data=pts1,aes(x=vals,ymin=y25,ymax=y75,width=0.7/length(vals)))
+            }
+          }
+          if (use_col_names){
+            pts1<-data.frame(x=vals+vals_offset,y=y50e,fill=explore$Explore_typeShow)
+            g<-g+geom_point(data=pts1,aes(x=x,y=y,fill=fill),shape=shapes$parameter, colour = "black", size = markersize)
+          } else {
+            g<-g+geom_point(data=pts1,aes(x=vals,y=y50,fill=fill),shape=shapes$parameter, colour = "black", size = markersize)
+          }
+        }
+        if (!isempty(y50a)) {
+          pts1<-data.frame(vals=vals+vals_offset,y50=y50a,fill=cola)
+          if (doLine) {
+            pts1f<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y25a,rev(y75a)),fill=cola)
+            pts2f<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y38a,rev(y62a)),fill=cola)
+            if (ni_max2==1 || !no_se_multiple) {
+              g<-g+geom_polygon(data=pts1f,aes(x=x,y=y,fill=fill),alpha=0.5)
+              g<-g+geom_polygon(data=pts2f,aes(x=x,y=y,fill=fill),alpha=0.45)
+            }
+            g<-g+geom_line(data=pts1,aes(x=vals,y=y50),color="black")
+          } else{
+            if (ni_max2==1 || !no_se_multiple){
+              g<-g+geom_errorbar(data=pts1,aes(x=vals,ymin=y25,ymax=y75,width=0.7/length(vals)))
+            }
+          }
+          if (use_col_names){
+            pts1<-data.frame(x=vals+vals_offset,y=y50a,fill=explore$Explore_typeShow)
+            g<-g+geom_point(data=pts1,aes(x=x,y=y,fill=fill),shape=shapes$parameter, colour = "black", size = markersize)
+          } else {
+            g<-g+geom_point(data=pts1,aes(x=vals,y=y50,fill=fill),shape=shapes$parameter, colour = "black", size = markersize)
+          }
+        }
+        
       }
+      g<-g+geom_hline(yintercept=0,colour="white")
     }
     
     # now the NHST and FDR filled areas
     if (explore$Explore_show=="FDR;FMR" || explore$Explore_show=="NHSTErrors") {
       endI<-length(vals)
 
-      # false misses
-      ytop<-1-y50a
-      pts1<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(ytop-y50,rev(ytop)))
-      col1<-plotcolours$infer_misserr
-      lb1<-nonNullNegative
-      lb1xy<-data.frame(x=max(vals),y=mean(c(ytop[endI],ytop[endI]-y50[endI])))
-      ytop<-ytop-y50
-      
       if (explore$Explore_show=="NHSTErrors") {
+        ytop<-1-isigNonNulls*0
+        yn<-0.5
+        
+        # error Z+
+        if (any(isigNonNulls!=0)) {
+          ybottom<-ytop-isigNonNulls
+          ybottom[ybottom<0]<-0
+          pts0<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(ybottom,rev(ytop)))
+          col0<-plotcolours$infer_isigNonNull
+          lb0<-nonNullNegative
+          lb0xy<-data.frame(x=max(vals),y=1-yn/10)
+          yn<-yn+1
+          ytop<-ybottom
+        } else {pts0<-NULL}
+        
+        # false misses
+        if (any(nsigNonNulls!=0)) {
+          ybottom<-ytop-nsigNonNulls
+          ybottom[ybottom<0]<-0
+          pts1<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(ybottom,rev(ytop)))
+          switch (STMethod,
+                  "NHST"={col1<-plotcolours$infer_nsNonNull},
+                  "sLLR"={col1<-plotcolours$infer_nsNonNull},
+                  "dLLR"={col1<-plotcolours$infer_nsdNonNull})
+          lb1<-nonNullNS
+          lb1xy<-data.frame(x=max(vals),y=1-yn/10)
+          yn<-yn+1
+          ytop<-ybottom
+        } else {pts1<-NULL}
+        
         # true hits
-        ybottom<-ytop-y50t
-        ybottom[ybottom<0]<-0
-        pts2<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(ybottom,rev(ytop)))
-        col2<-plotcolours$infer_sigC
-        lb2<-nonNullPositive
-        lb2xy<-data.frame(x=max(vals),y=mean(c(ytop[endI],ybottom[endI])))
-        ytop<-ybottom
+        if (any(sigNonNulls!=0)) {
+          ybottom<-ytop-sigNonNulls
+          ybottom[ybottom<0]<-0
+          pts2<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(ybottom,rev(ytop)))
+          col2<-plotcolours$infer_sigNonNull
+          lb2<-nonNullPositive
+          lb2xy<-data.frame(x=max(vals),y=1-yn/10)
+          yn<-yn+1
+          ytop<-ybottom
+        } else {pts2<-NULL}
+        
+        yn<-any(isigNulls!=0)+any(nsigNulls!=0)+any(sigNulls!=0)-0.5
+        # false hits
+        if (any(isigNulls!=0)) {
+          ybottom<-ytop-isigNulls
+          ybottom[ybottom<0]<-0
+          pts3<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(ybottom,rev(ytop)))
+          col3<-plotcolours$infer_isigNull
+          lb3<-nullNegative
+          lb3xy<-data.frame(x=max(vals),y=0+yn/10)
+          yn<-yn-1
+          ytop<-ybottom
+        } else {pts3<-NULL}
         
         # true misses
-        ybottom<-ytop-y50et
-        ybottom[ybottom<0]<-0
-        pts3<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(ybottom,rev(ytop)))
-        col3<-plotcolours$infer_nsigC
-        lb3<-nullNegative
-        lb3xy<-data.frame(x=max(vals),y=mean(c(ytop[endI],ybottom[endI])))
-        ytop<-ybottom
+        if (any(nsigNulls!=0)) {
+          ybottom<-ytop-nsigNulls
+          ybottom[ybottom<0]<-0
+          pts4<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(ybottom,rev(ytop)))
+          switch (STMethod,
+                  "NHST"={col4<-plotcolours$infer_nsNull},
+                  "sLLR"={col4<-plotcolours$infer_nsNull},
+                  "dLLR"={col4<-plotcolours$infer_nsdNull})
+          lb4<-nullNS
+          lb4xy<-data.frame(x=max(vals),y=0+yn/10)
+          yn<-yn-1
+          ytop<-ybottom
+        } else {pts4<-NULL}
         
-        # false hits  
-        ybottom<-ytop*0
-        pts4<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(ybottom,rev(ytop)))
-        col4<-plotcolours$infer_hiterr
-        lb4<-nullPositive
-        lb4xy<-data.frame(x=max(vals),y=mean(c(ytop[endI],ybottom[endI])))
-        ytop<-ybottom
+        # error Z0
+        if (any(sigNulls!=0)) {
+          ybottom<-ytop-sigNulls
+          ybottom[ybottom<0]<-0
+          pts5<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(ybottom,rev(ytop)))
+          col5<-plotcolours$infer_sigNull
+          lb5<-nullPositive
+          lb5xy<-data.frame(x=max(vals),y=0+yn/10)
+          yn<-yn-1
+          ytop<-ybottom
+        } else {pts5<-NULL}
+        
         
       } 
+      
       if (explore$Explore_show=="FDR;FMR") {
+        pts0<-NULL
+        # false misses
+        pts1<-data.frame(x=c(vals,rev(vals))+vals_offset,y=1-c(nsigNonNulls,rep(0,endI)))
+        col1<-plotcolours$fmr
+        lb1<-nonNullNS
+        lb1xy<-data.frame(x=max(vals),y=0.9)
+        
+        pts2<-NULL
+        
+        if (any(nsigNulls!=0)) {
+          pts3<-data.frame(x=c(vals,rev(vals))+vals_offset,y=1-c(nsigNulls+nsigNonNulls,rev(nsigNonNulls)))
+          col3<-plotcolours$infer_nsNUll
+          lb3<-nullNS
+          lb3xy<-data.frame(x=max(vals),y=0.8)
+        } else {pts3<-NULL}
+        
         # false hits
-        pts2<-c()
-        pts3<-c()
-        pts4<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(y50e,rep(0,endI)))
+        pts4<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(sigNulls+isigNonNulls,rev(isigNonNulls)))
         col4<-plotcolours$fdr
         lb4<-nullPositive
-        lb4xy<-data.frame(x=max(vals),y=mean(c(0,y50e[endI])))
+        lb4xy<-data.frame(x=max(vals),y=0.2)
+        
+        if (any(isigNonNulls!=0)) {
+          # non-null errors
+          pts5<-data.frame(x=c(vals,rev(vals))+vals_offset,y=c(isigNonNulls,rep(0,endI)))
+          col5<-plotcolours$infer_isigNonNull
+          lb5<-nonNullNegative
+          lb5xy<-data.frame(x=max(vals),y=0.1)
+        } else {pts5<-NULL}
       }
       
       if (doLine) {
         # type 2 errors
-        g<-g+geom_polygon(data=pts1,aes(x=x,y=y),fill=col1)
+        if (!is.null(pts0)) g<-g+geom_polygon(data=pts0,aes(x=x,y=y),fill=col0)
+        if (!is.null(pts1)) g<-g+geom_polygon(data=pts1,aes(x=x,y=y),fill=col1)
         if (!is.null(pts2)) g<-g+geom_polygon(data=pts2,aes(x=x,y=y),fill=col2)
         if (!is.null(pts3)) g<-g+geom_polygon(data=pts3,aes(x=x,y=y),fill=col3)
         if (!is.null(pts4)) g<-g+geom_polygon(data=pts4,aes(x=x,y=y),fill=col4)
+        if (!is.null(pts5)) g<-g+geom_polygon(data=pts5,aes(x=x,y=y),fill=col5)
       } else {
         npts<-length(y50)
         bwidth<-0.4*(pts1$x[2]-pts1$x[1])
         for (i in 1:npts) {
-          g<-g+drawNHSTBar(i,npts,pts1,bwidth,col1)
+          if (!is.null(pts0)) g<-g+drawNHSTBar(i,npts,pts2,bwidth,col0)
+          if (!is.null(pts1)) g<-g+drawNHSTBar(i,npts,pts2,bwidth,col1)
           if (!is.null(pts2)) g<-g+drawNHSTBar(i,npts,pts2,bwidth,col2)
           if (!is.null(pts3)) g<-g+drawNHSTBar(i,npts,pts3,bwidth,col3)
           if (!is.null(pts4)) g<-g+drawNHSTBar(i,npts,pts4,bwidth,col4)
+          if (!is.null(pts5)) g<-g+drawNHSTBar(i,npts,pts5,bwidth,col5)
         }
       }
       
       if (doLine) xoff<-0
       else        xoff<-bwidth
       
-      g<-g+drawNHSTLabel(lb1,lb1xy,xoff,col1)
+      if (!is.null(pts0)) g<-g+drawNHSTLabel(lb0,lb0xy,xoff,col0)
+      if (!is.null(pts1)) g<-g+drawNHSTLabel(lb1,lb1xy,xoff,col1)
       if (!is.null(pts2)) g<-g+drawNHSTLabel(lb2,lb2xy,xoff,col2)
       if (!is.null(pts3)) g<-g+drawNHSTLabel(lb3,lb3xy,xoff,col3)
       if (!is.null(pts4)) g<-g+drawNHSTLabel(lb4,lb4xy,xoff,col4)
+      if (!is.null(pts5)) g<-g+drawNHSTLabel(lb5,lb5xy,xoff,col5)
       
       xmargin<-2
     }
@@ -766,7 +933,7 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
       }
       if (ni_max2>1){label<-paste(explore$Explore_typeShow,": ",label,sep="")}
       lpts<-data.frame(x=min(n)+vals_offset,y=0.8+(ni_max2-1)/10,label=label)
-      g<-g+geom_label(data=lpts,aes(x = x, y = y, label = label), hjust=0, vjust=0, fill = "white",size=3.5)
+      g<-g+geom_label(data=lpts,aes(x = x, y = y, label = label), hjust=0, vjust=0, fill = "white",size=labelSize)
     }
     
     # find r80
@@ -793,8 +960,8 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
         # label<-paste("Unsafe result","  r_est =", format(r_est,digits=3))
       }
       if (ni_max2>1){label<-paste(explore$Explore_typeShow,": ",label,sep="")}
-      lpts<-data.frame(x=0+vals_offset,y=0.8+(ni-1)/10,label=label)
-      g<-g+geom_label(data=lpts,aes(x = x, y = y, label = label), hjust=0, vjust=0, fill = "white",size=3.5)
+      lpts<-data.frame(x=0+vals_offset,y=0.8+(ni_max2-1)/10,label=label)
+      g<-g+geom_label(data=lpts,aes(x = x, y = y, label = label), hjust=0, vjust=0, fill = "white",size=labelSize)
     }
   }
 
@@ -811,7 +978,7 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
         vals_offset<-(ni2-1)*valsGap*2 
       }
       td<-data.frame(x=vals_offset,y=ylim[2]-diff(ylim)/6,label=explore$Explore_whichShow)
-      g<-g+geom_label(data=td,aes(x=x, y=y, label=label,hjust=0.5))
+      g<-g+geom_label(data=td,aes(x=x, y=y, label=label,hjust=0.5),size=labelSize)
     }
     if (is.character(exploreResult$result$vals[1])) {
       g<-g+geom_vline(aes(xintercept=valsGap*c(1,ni_max2-1)-0.5*(valsGap-1)))
@@ -837,7 +1004,7 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
   
   if ((is.element(exploreResult$Explore_type,c("SampleSize","Repeats","CheatingAmount")) &&
                  explore$Explore_xlog) 
-      || (exploreResult$Explore_type=="Alpha")
+      || ((exploreResult$Explore_type=="Alpha") && explore$Explore_xlog)
       || ((exploreResult$Explore_type=="NoStudies") && explore$Explore_Mxlog)) {
     dx<-(log10(max(vals))-log10(min(vals)))/15
     g<-g+scale_x_log10(limits=c(10^(log10(min(vals))-dx),10^(log10(max(vals))+dx*xmargin)))
@@ -853,9 +1020,29 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
       }
     }
 
-  if (explore$ExploreFull_ylim){
-    g<-g+coord_cartesian(ylim = ylim*1.05)
+  if (explore$Explore_ylog) {
+    ysc<-scale_y_log10
+  } else {
+    ysc<-scale_y_continuous
   }
+  if (explore$ExploreFull_ylim){
+    ylim<-ylim*1.05
+  }
+
+  if (!explore$ExploreAny_ylim) {
+  if (!is.null(secondY)) {
+    g<-g+ysc(sec.axis=sec_axis(~ 1-.,name=secondY))
+  } else {
+    g<-g+ysc()
+  }
+  } else {
+    if (!is.null(secondY)) {
+      g<-g+ysc(limits=ylim,sec.axis=sec_axis(~ 1-.,name=secondY))
+    } else {
+      g<-g+ysc(limits=ylim)
+    }
+  }
+  
   
   g<-g+ylab(ylabel)
   switch (exploreResult$Explore_type,
@@ -869,7 +1056,8 @@ drawExplore<-function(IV,IV2,DV,effect,design,explore,exploreResult){
           "Alpha"={g<-g+xlab(alphaChar)},
           g<-g+xlab(exploreResult$Explore_type)
   )
-  
+  alpha<<-oldAlpha
+
   g+plotTheme
 }
 

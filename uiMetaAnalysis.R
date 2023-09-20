@@ -3,8 +3,6 @@
 metaPanel<-function(prefix="") {
   tabPanel("MetaAnalysis",value="MetaAnalysis",
            style = paste("background: ",subpanelcolours$evidenceC),
-           wellPanel(
-             style = paste("background: ",subpanelcolours$simulateC,";"),
              tags$table(width = "100%",class="myTable",
                         tags$tr(
                           tags$td(width = "30%",tags$div(style = localStyle, "Source:")
@@ -64,7 +62,7 @@ metaPanel<-function(prefix="") {
                           ),
                           tags$td(width = "25%",
                                   selectInput(paste0(prefix,"meta_showParams"),label=NULL,
-                                              choices=c(paste0(Pchar,"-",Lchar),paste("S-",Lchar),"S-S"),
+                                              choices=c(paste0(Pchar,"-",Lchar),paste0("S-",Lchar),"S-S"),
                                               selected=metaAnalysis$meta_showParams,
                                               selectize=FALSE
                                   )
@@ -94,7 +92,6 @@ metaPanel<-function(prefix="") {
                           tags$td(width = "10%",actionButton(paste0(prefix,"metaRun"), "Run")
                           )
                         )
-             )
            )
   )
 }

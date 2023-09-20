@@ -370,6 +370,7 @@ multipleAnalysis<-function(IV,IV2,DV,effect,design,evidence,n_sims=1,appendData=
   for (i in 1:n_sims){
     if (showProgress && (n_sims<=50 || (n_sims>50 && i==round(i/25)*25))) {
       off<-length(mainResult$rIV)+1
+      off<-0
       showNotification(paste(progressPrefix,format(i+off),"/",format(n_sims+off)),id="counting",duration=Inf,closeButton=FALSE,type="message")
     } 
     effect$rIV<-rho[i]
@@ -1025,12 +1026,32 @@ runSimulation<-function(IV,IV2,DV,effect,design,evidence,sig_only=FALSE,onlyAnal
     res<-analyseSample(IV,IV2,DV,effect,design,evidence,oldResult)
     return(res)
   }
-  if (!shortHand) {
-    sample<-makeSample(IV,IV2,DV,effect,design)
-    res<-analyseSample(IV,IV2,DV,effect,design,evidence,sample)
-  } else {
-    res<-sampleShortCut(IV,IV2,DV,effect,design,evidence,1,FALSE)
+  
+  ntrials<-0
+  p_min<-1
+  while (1==1) {
+    if (!shortHand) {
+      sample<-makeSample(IV,IV2,DV,effect,design)
+      res<-analyseSample(IV,IV2,DV,effect,design,evidence,sample)
+    } else {
+      res<-sampleShortCut(IV,IV2,DV,effect,design,evidence,1,FALSE)
+    }
+    if (design$sBudgetOn) {
+      if (res$pIV<p_min) {
+        p_min<-res$pIV
+        res1<-res
+      } else {
+        res<-res1
+      }
+      ntrials<-ntrials+res$nval
+      if (ntrials>=design$sNBudget) {
+        break
+      }
+    } else {
+      break
+    }
   }
+  
   # sig only
   while (sig_only && !isSignificant(STMethod,res$pIV,res$rIV,res$nval,res$df1,evidence)) {
     if (!shortHand) {
