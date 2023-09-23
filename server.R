@@ -32,8 +32,20 @@ debugPrint<-function(s) {
   }
   }
 
+#because numericInput with "0." returns NA
+checkNumber<-function(a,b=a,c=0) {
+  if (!isempty(a)) {
+    if (is.na(a) || is.null(a)) {a<-c}
+  }
+  a
+}
+
 if (debug) debugPrint("Opens")
 
+source("getGlobals.R")
+source("getVariables.R")
+
+source("joinPlots.R")
 source("plotStatistic.R")
 source("plotES.R")
 source("plotReport.R")
@@ -58,6 +70,10 @@ source("sampleCheck.R")
 source("Johnson_M.R")
 source("sampleShortCut.R")
 
+source("graphSample.R")
+source("graphDescription.R")
+source("graphInference.R")
+
 source("reportSample.R")
 source("reportDescription.R")
 source("reportInference.R")
@@ -77,6 +93,9 @@ source("typeCombinations.R")
 source("drawInspect.R")
 source("isSignificant.R")
 
+source("varUtilities.R")
+source("getLogisticR.R")
+
 graphicSource="Main"
 
 ####################################
@@ -84,8 +103,9 @@ graphicSource="Main"
 shinyServer(function(input, output, session) {
   if (debug) debugPrint("Start")
   
-  source("myGlobal.R")
-  source("runDebug.R")
+  getGlobals()
+  getVariables()
+  # source("runDebug.R")
   
 ####################################
 # BASIC SET UP that cannot be done inside ui.R  
@@ -165,7 +185,7 @@ shinyServer(function(input, output, session) {
       hideElement("HypothesisPopulation")
     } else {
       plotTheme<<-mainTheme+SMplotTheme
-      pplotTheme<<-mainTheme+SMplotTheme+theme(plot.margin=margin(0.15,0.8,0,0.25,"cm"))
+      diagramTheme<<-mainTheme+SMplotTheme+theme(plot.margin=margin(0.15,0.8,0,0.25,"cm"))
       labelSize<<-4
       char3D<<-1.3
       
@@ -268,7 +288,7 @@ shinyServer(function(input, output, session) {
     STMethod<<-input$STMethod
     switch (STMethod,
             "NHST"={
-              updateNumericInput(session,"alpha",value=alpha)
+              updateNumericInput(session,"alpha",value=alphaSig)
               shinyjs::hideElement("evidencePrior")
               shinyjs::hideElement("STPrior")
               shinyjs::hideElement("evidenceLLR1")
@@ -295,8 +315,8 @@ shinyServer(function(input, output, session) {
     )
   })
   observeEvent(input$alpha, {
-    alpha<<-input$alpha
-    alphaLLR<<-0.5*qnorm(1-alpha/2)^2
+    alphaSig<<-input$alpha
+    alphaLLR<<-0.5*qnorm(1-alphaSig/2)^2
   })
   
   observeEvent(input$evidenceInteractionOnly,{
